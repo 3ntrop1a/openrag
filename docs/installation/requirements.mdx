@@ -1,381 +1,385 @@
 ---
 title: 'Prérequis système'
-description: 'Configuration requise pour installer OpenRAG'
+description: 'Configuration matérielle et logicielle requise pour OpenRAG'
 ---
 
 # Prérequis système
 
-Avant d'installer OpenRAG, assurez-vous que votre système répond aux exigences suivantes.
+OpenRAG nécessite des ressources significatives pour faire fonctionner un LLM local (llama3.1:8b) et l'infrastructure complète.
 
-## Configuration minimale
+## Configuration matérielle
 
-### Hardware
+### Configuration MINIMALE (Mode CPU uniquement)
+
+<Warning>
+Cette configuration permettra de faire fonctionner le système mais avec des performances limitées. Le LLM prendra **50-75 secondes** pour la première réponse, puis **5-15 secondes** pour les suivantes.
+</Warning>
 
 <CardGroup cols={2}>
   <Card title="CPU" icon="microchip">
-    **Minimum:** 2 cores
+    **Minimum:** 8 cores (x86_64)
     
-    **Recommandé:** 4+ cores
+    Le LLM utilise 80-100% de tous les cores pendant la génération
   </Card>
   <Card title="RAM" icon="memory">
-    **Minimum:** 4GB
+    **Minimum:** 16 GB
     
-    **Recommandé:** 8GB+ (16GB pour de meilleures performances)
+    - LLM (llama3.1:8b): ~5.5 GB
+    - Services (PostgreSQL, Redis, Qdrant, MinIO): ~2 GB
+    - Streamlit frontends: ~500 MB
+    - OS + buffers: ~8 GB
   </Card>
   <Card title="Stockage" icon="hard-drive">
-    **Minimum:** 20GB disponible
+    **Minimum:** 50 GB SSD
     
-    **Recommandé:** 50GB+ SSD
+    - Images Docker: ~8 GB
+    - Modèle Ollama (llama3.1:8b): 4.9 GB
+    - Embeddings: ~400 MB
+    - Données + documents: 10+ GB
   </Card>
-  <Card title="GPU (optionnel)" icon="gpu-card">
-    **Pour Ollama:** NVIDIA GPU avec 8GB+ VRAM
+  <Card title="Réseau" icon="wifi">
+    **Requis:** Connexion internet stable
     
-    **Pour Embeddings:** Accélère x10-50
+    Pour télécharger le modèle LLM (4.9 GB) et les images Docker
   </Card>
 </CardGroup>
 
-### Décomposition de l'utilisation de stockage
+### Configuration RECOMMANDÉE (Avec GPU)
 
-- **Docker images:** ~5-8GB
-- **Ollama models:** 4-8GB par modèle
-- **Embedding models:** 0.5-2GB
-- **Données (PostgreSQL, Qdrant):** Variable selon volume
-- **Documents (MinIO):** Selon vos besoins
+<Tip>
+Avec un GPU NVIDIA, les performances du LLM sont **10-50x plus rapides**. Les réponses prennent alors **1-3 secondes** au lieu de 5-15s.
+</Tip>
+
+<CardGroup cols={2}>
+  <Card title="CPU" icon="microchip">
+    **Recommandé:** 12+ cores
+  </Card>
+  <Card title="RAM" icon="memory">
+    **Recommandé:** 32 GB
+    
+    Plus de RAM permet de charger des modèles plus grands et gérer plus d'utilisateurs simultanés
+  </Card>
+  <Card title="GPU" icon="rectangle-terminal">
+    **Recommandé:** NVIDIA GPU avec 12+ GB VRAM
+    
+    - RTX 3060 (12GB): Bon pour llama3.1:8b
+    - RTX 4090 (24GB): Excellent pour modèles plus grands
+    - A100 (40/80GB): Production
+    
+    **Important:** Requiert CUDA Toolkit et nvidia-docker
+  </Card>
+  <Card title="Stockage" icon="hard-drive">
+    **Recommandé:** 100+ GB NVMe SSD
+    
+    Pour de meilleures performances I/O sur PostgreSQL et Qdrant
+  </Card>
+</CardGroup>
+
+### Décomposition de l'utilisation RAM (système en production)
+
+```
+Ollama (LLM chargé):        5.5 GB
+PostgreSQL 16:              500 MB
+Qdrant (928 vecteurs):      300 MB
+Redis 7:                    100 MB
+MinIO:                      200 MB
+API Gateway:                200 MB
+Orchestrator:               300 MB
+Embedding Service:          200 MB
+Frontend User:              250 MB
+Frontend Admin:             250 MB
+OS (Debian/Ubuntu):       2-4 GB
+Buffers système:          4-6 GB
+-----------------------------------
+TOTAL:                   14-18 GB
+```
 
 ## Logiciels requis
 
 ### Docker & Docker Compose
+## Logiciels requis
+
+### Docker & Docker Compose (REQUIS)
 
 <Tabs>
-  <Tab title="Linux">
+  <Tab title="Linux (Debian/Ubuntu)">
     ```bash
-    # Ubuntu/Debian
+    # Mettre à jour les paquets
     sudo apt-get update
+    
+    # Installer Docker
     sudo apt-get install -y docker.io docker-compose-plugin
     
-    # Ajouter votre utilisateur au groupe docker
+    # Ajouter votre utilisateur au groupe docker (évite sudo à chaque fois)
     sudo usermod -aG docker $USER
     newgrp docker
     
-    # Vérifier l'installation
-    docker --version
-    docker compose version
+    # Vérifier les versions
+    docker --version        # Requis: 26.0+
+    docker compose version  # Requis: 2.26+
     ```
     
-    **Versions minimales:**
-    - Docker: 20.10+
-    - Docker Compose: 2.0+
+    <Warning>
+    **IMPORTANT:** Après l'ajout au groupe docker, vous devez vous **déconnecter et reconnecter** pour que les permissions prennent effet.
+    </Warning>
   </Tab>
   
   <Tab title="macOS">
     ```bash
     # Installer Docker Desktop pour Mac
-    # Télécharger depuis: https://www.docker.com/products/docker-desktop
+    # Télécharger: https://www.docker.com/products/docker-desktop
     
     # Ou avec Homebrew
     brew install --cask docker
-    
-    # Vérifier l'installation
-    docker --version
-    docker compose version
     ```
     
-    **Configuration recommandée Docker Desktop:**
-    - RAM allouée: 4GB minimum, 8GB recommandé
-    - CPUs: 2 minimum, 4 recommandé
+    **Configuration Docker Desktop (Requis):**
+    - RAM: **16 GB minimum**
+    - CPUs: **8 cores minimum**
+    - Swap: 2 GB
+    - Disk: 60 GB
   </Tab>
   
-  <Tab title="Windows">
+  <Tab title="Windows + WSL2">
     ```powershell
-    # Installer Docker Desktop pour Windows
-    # Télécharger depuis: https://www.docker.com/products/docker-desktop
-    
-    # Nécessite WSL2 (Windows Subsystem for Linux)
+    # 1. Installer WSL2
     wsl --install
     wsl --set-default-version 2
     
-    # Vérifier l'installation
-    docker --version
-    docker compose version
+    # 2. Installer Ubuntu dans WSL2
+    wsl --install -d Ubuntu-22.04
+    
+    # 3. Installer Docker Desktop pour Windows
+    # Télécharger: https://www.docker.com/products/docker-desktop
     ```
     
-    **Prérequis:**
-    - Windows 10/11 (64-bit)
-    - Virtualisation activée dans le BIOS
-    - WSL2 installé et configuré
+    **Configuration Docker Desktop:**
+    - Activer "Use WSL 2 based engine"
+    - RAM: 16 GB minimum
+    - CPUs: 8 cores minimum
   </Tab>
 </Tabs>
 
-### Git
+### Git (REQUIS)
 
 ```bash
-# Linux (Ubuntu/Debian)
+# Linux
 sudo apt-get install git
 
-# macOS
+# macOS  
 brew install git
 
-# Windows
-# Télécharger depuis: https://git-scm.com/download/win
+# Vérifier
+git --version
 ```
 
-### Utilitaires optionnels mais recommandés
+### Utilitaires recommandés
 
-<AccordionGroup>
-  <Accordion title="cURL - Pour tester l'API">
-    ```bash
-    # Linux
-    sudo apt-get install curl
-    
-    # macOS
-    brew install curl
-    
-    # Windows
-    # Inclus par défaut dans Windows 10+
-    ```
-  </Accordion>
-  
-  <Accordion title="jq - Pour parser le JSON">
-    ```bash
-    # Linux
-    sudo apt-get install jq
-    
-    # macOS
-    brew install jq
-    
-    # Windows
-    choco install jq
-    ```
+Ces outils facilitent les tests et le debugging mais ne sont pas obligatoires :
+
+```bash
+# Linux (Debian/Ubuntu)
+sudo apt-get install -y curl jq
+
+# macOS
+brew install curl jq
+
+# Vérifier
+curl --version
+jq --version
+```
+
+**Utilité:**
+- `curl`: Tester l'API REST (requêtes HTTP)
+- `jq`: Parser et formatter les réponses JSON
   </Accordion>
   
   <Accordion title="HTTPie - Alternative moderne à cURL">
     ```bash
     pip install httpie
     ```
-  </Accordion>
-</AccordionGroup>
+## Ports réseau utilisés
 
-## Configuration réseau
+OpenRAG utilise **10 services** avec les ports suivants :
 
-### Ports utilisés
+### Ports publics (accessibles depuis le navigateur)
 
-Assurez-vous que ces ports sont disponibles :
+| Service | Port | URL | Description |
+|---------|------|-----|-------------|
+| **Interface Chat** | 8501 | http://localhost:8501 | Interface utilisateur Streamlit |
+| **Panel Admin** | 8502 | http://localhost:8502 | Dashboard administration |
+| **API REST** | 8000 | http://localhost:8000 | Point d'entrée API |
+| **MinIO Console** | 9001 | http://localhost:9001 | Gestion stockage (admin/admin123456) |
+| **Qdrant Dashboard** | 6333 | http://localhost:6333/dashboard | Vector DB |
 
-| Service | Port | Description |
-|---------|------|-------------|
-| API Gateway | 8000 | Point d'entrée principal |
-| Orchestrator | 8001 | Service interne |
-| Embedding Service | 8002 | Service interne |
+### Ports internes (entre conteneurs Docker)
+
+| Service | Port | Usage |
+|---------|------|-------|
 | PostgreSQL | 5432 | Base de données |
-| Redis | 6379 | Cache & Queue |
-| MinIO API | 9000 | Stockage objets |
-| MinIO Console | 9001 | Interface web MinIO |
-| Qdrant HTTP | 6333 | Vector DB API |
+| Redis | 6379 | Cache et queues |
+| MinIO API | 9000 | Stockage S3 |
 | Qdrant gRPC | 6334 | Vector DB gRPC |
 | Ollama | 11434 | LLM Server |
-| Prometheus | 9090 | Monitoring (optionnel) |
-| Grafana | 3000 | Dashboards (optionnel) |
+| Orchestrator | 8001 | Service orchestration |
+| Embedding | 8002 | Service embeddings |
 
-### Vérifier les ports disponibles
-
-<Tabs>
-  <Tab title="Linux/macOS">
-    ```bash
-    # Vérifier si un port est utilisé
-    sudo lsof -i :8000
-    
-    # Ou avec netstat
-    netstat -an | grep 8000
-    ```
-  </Tab>
-  
-  <Tab title="Windows">
-    ```powershell
-    # PowerShell
-    netstat -an | findstr "8000"
-    
-    # Ou
-    Get-NetTCPConnection -LocalPort 8000
-    ```
-  </Tab>
-</Tabs>
-
-### Firewall
-
-Si vous utilisez un firewall, autorisez les ports nécessaires :
+### Vérifier qu'un port est disponible
 
 ```bash
-# Linux (ufw)
-sudo ufw allow 8000/tcp
-sudo ufw allow 9001/tcp
+# Linux/macOS
+sudo lsof -i :8501
 
-# Linux (firewalld)
-sudo firewall-cmd --permanent --add-port=8000/tcp
-sudo firewall-cmd --reload
+# Si le port est utilisé, trouver le processus
+sudo lsof -i :8501 | grep LISTEN
+
+# Tuer le processus si nécessaire
+sudo kill -9 <PID>
 ```
 
-## Support GPU (optionnel mais recommandé)
+<Warning>
+**Si un port est déjà utilisé**, vous devrez soit arrêter l'application qui l'utilise, soit modifier le fichier `docker-compose.yml` pour changer le mapping de ports.
+</Warning>
 
-### Pour Ollama et Embeddings
+## Support GPU (Optionnel - Performances x10-50)
 
-<Tabs>
-  <Tab title="NVIDIA GPU (Linux)">
+### NVIDIA GPU sous Linux (Recommandé pour production)
+
+<Steps>
+  <Step title="Installer NVIDIA Container Toolkit">
     ```bash
-    # Installer NVIDIA Container Toolkit
+    # Ajouter le repository NVIDIA
     distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
-    curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
-    curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | \
-      sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | \
+      sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
     
+    curl -s -L https://nvidia.github.io/libnvidia-container/$distribution/libnvidia-container.list | \
+      sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+      sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+    
+    # Installer
     sudo apt-get update
     sudo apt-get install -y nvidia-container-toolkit
     
-    # Redémarrer Docker
+    # Configurer Docker
+    sudo nvidia-ctk runtime configure --runtime=docker
     sudo systemctl restart docker
-    
-    # Tester
-    docker run --rm --gpus all nvidia/cuda:11.8.0-base-ubuntu22.04 nvidia-smi
     ```
-  </Tab>
+  </Step>
   
-  <Tab title="NVIDIA GPU (Windows)">
-    Docker Desktop pour Windows supporte nativement les GPUs NVIDIA.
-    
-    **Prérequis:**
-    - Windows 10/11
-    - NVIDIA GPU
-    - Derniers drivers NVIDIA
-    - Docker Desktop avec WSL2
-    
-    **Test:**
-    ```powershell
-    docker run --rm --gpus all nvidia/cuda:11.8.0-base-ubuntu22.04 nvidia-smi
+  <Step title="Tester GPU dans Docker">
+    ```bash
+    docker run --rm --gpus all nvidia/cuda:12.0-base nvidia-smi
     ```
-  </Tab>
+    
+    Vous devriez voir les informations de votre GPU NVIDIA.
+  </Step>
+  
+  <Step title="Modifier docker-compose.yml pour Ollama">
+    ```yaml
+    # Dans docker-compose.yml, section ollama:
+    ollama:
+      deploy:
+        resources:
+          reservations:
+            devices:
+              - driver: nvidia
+                count: all
+                capabilities: [gpu]
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+Avec GPU : LLM répond en **1-3 secondes**  
+Sans GPU : LLM répond en **5-15 secondes** (après premier chargement 50-75s)
+</Tip>
   
   <Tab title="Apple Silicon (M1/M2/M3)">
     Ollama supporte l'accélération Metal sur Apple Silicon.
+## Vérification rapide des prérequis
+
+Avant d'installer OpenRAG, exécutez ces commandes pour vérifier votre système :
+
+```bash
+# Versions Docker (minimum requis dans les commentaires)
+docker --version        # Requis: 26.0+
+docker compose version  # Requis: 2.26+
+
+# RAM disponible
+free -h | grep Mem     # Requis: 16GB minimum
+
+# Espace disque
+df -h | grep -E '/$|/home'  # Requis: 50GB minimum libre
+
+# GPU (optionnel)
+nvidia-smi  # Si vous avez un GPU NVIDIA
+```
+
+### Checklist avant installation
+
+<Check>Serveur avec **16 GB+ RAM**</Check>
+<Check>**50 GB+** espace disque SSD</Check>
+<Check>Docker **26.0+** installé</Check>
+<Check>Docker Compose **2.26+** installé</Check>
+<Check>Utilisateur dans le groupe `docker`</Check>
+<Check>Ports **8000, 8501, 8502** disponibles</Check>
+<Check>Connexion internet stable (téléchargement 5 GB de modèle)</Check>
+
+### Configuration par type d'usage
+
+<Tabs>
+  <Tab title="Usage Simple (pas de GPU)">
+    **Matériel:**
+    - CPU: 8 cores
+    - RAM: 16 GB
+    - SSD: 50 GB
     
-    Aucune configuration supplémentaire nécessaire avec Docker Desktop pour Mac.
+    **Performances attendues:**
+    - Recherche vectorielle: 100-200 ms
+    - LLM première réponse: 50-75 s (chargement modèle)
+    - LLM suivantes: 5-15 s
     
-    Les performances sont excellentes nativement.
+    **Idéal pour:** Tests, développement, usage personnel
+  </Tab>
+  
+  <Tab title="Production (avec GPU)">
+    **Matériel:**
+    - CPU: 12+ cores
+    - RAM: 32 GB
+    - SSD: 100 GB NVMe
+    - GPU: NVIDIA RTX 3060 (12GB) ou mieux
+    
+    **Performances attendues:**
+    - Recherche vectorielle: 50-100 ms
+    - LLM: 1-3 s (avec GPU)
+    
+    **Idéal pour:** Production, multi-utilisateurs, chatbot client
+  </Tab>
+  
+  <Tab title="Environnement Test Léger">
+    **Matériel:**
+    - CPU: 4 cores
+    - RAM: 8 GB
+    - SSD: 30 GB
+    
+    **Modifications requises:**
+    - Utiliser modèle léger: `phi3:mini` au lieu de `llama3.1:8b`
+    - Réduire le nombre de workers
+    - Limiter les services non-essentiels
+    
+    **Performances:** Limitées mais fonctionnelles pour tests basiques
   </Tab>
 </Tabs>
 
-### Impact du GPU
-
-<Info>
-**Avec GPU:**
-- Embedding: 10-50x plus rapide
-- LLM (Ollama): 5-20x plus rapide
-- Permet des modèles plus grands
-
-**Sans GPU:**
-- Tout fonctionne en CPU
-- Plus lent mais parfaitement utilisable
-- Privilégier des modèles légers (phi3:mini, gemma:2b)
-</Info>
-
-## Vérification finale
-
-Script de vérification des prérequis :
-
-```bash check-requirements.sh
-#!/bin/bash
-
-echo "🔍 Vérification des prérequis OpenRAG..."
-echo
-
-# Check Docker
-if command -v docker &> /dev/null; then
-    echo "✅ Docker installé: $(docker --version)"
-else
-    echo "❌ Docker non installé"
-    exit 1
-fi
-
-# Check Docker Compose
-if docker compose version &> /dev/null; then
-    echo "✅ Docker Compose installé: $(docker compose version)"
-else
-    echo "❌ Docker Compose non installé"
-    exit 1
-fi
-
-# Check Git
-if command -v git &> /dev/null; then
-    echo "✅ Git installé: $(git --version)"
-else
-    echo "⚠️  Git non installé (optionnel)"
-fi
-
-# Check available RAM
-if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    RAM=$(free -g | awk '/^Mem:/{print $2}')
-    echo "💾 RAM disponible: ${RAM}GB"
-    if [ $RAM -lt 4 ]; then
-        echo "⚠️  RAM < 4GB - Performances limitées"
-    fi
-fi
-
-# Check disk space
-SPACE=$(df -h . | awk 'NR==2{print $4}')
-echo "💿 Espace disque disponible: $SPACE"
-
-# Check GPU
-if command -v nvidia-smi &> /dev/null; then
-    echo "✅ GPU NVIDIA détecté:"
-    nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
-else
-    echo "ℹ️  Pas de GPU NVIDIA (mode CPU uniquement)"
-fi
-
-echo
-echo "✅ Système prêt pour OpenRAG!"
-```
-
-Rendez le script exécutable et lancez-le :
-
-```bash
-chmod +x check-requirements.sh
-./check-requirements.sh
-```
-
-## Configuration système recommandée par cas d'usage
-
-### Développement / Test
-- **CPU:** 2-4 cores
-- **RAM:** 4-8GB
-- **GPU:** Optionnel
-- **Modèle LLM:** phi3:mini, gemma:2b
-
-### Production (petite échelle)
-- **CPU:** 4-8 cores
-- **RAM:** 16GB
-- **GPU:** NVIDIA 8GB VRAM
-- **Modèle LLM:** llama3.1:8b, mistral:7b
-
-### Production (grande échelle)
-- **CPU:** 8-16 cores
-- **RAM:** 32-64GB
-- **GPU:** NVIDIA 16GB+ VRAM (ou plusieurs)
-- **Modèle LLM:** llama3.1:70b ou API cloud
-
 ## Prochaines étapes
 
-<CardGroup cols={2}>
-  <Card
-    title="Installation Docker"
-    icon="docker"
-    href="/installation/docker-setup"
-  >
-    Guide d'installation complet
-  </Card>
-  <Card
-    title="Configuration"
-    icon="gear"
-    href="/installation/configuration"
-  >
-    Configurer les paramètres
-  </Card>
-</CardGroup>
+Une fois les prérequis remplis, consultez le [Guide de démarrage rapide](/quickstart) pour installer OpenRAG en **5 minutes**.
+
+<Card
+  title="Démarrage rapide"
+  icon="rocket"
+  href="/quickstart"
+>
+  Installer et lancer OpenRAG avec `docker compose up`
+</Card>

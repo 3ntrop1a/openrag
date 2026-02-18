@@ -1,332 +1,371 @@
 ---
 title: 'Démarrage rapide'
-description: 'Lancez OpenRAG en moins de 10 minutes'
+description: 'Lancez OpenRAG en 5 minutes'
 ---
 
 # Démarrage rapide
 
-Ce guide vous permettra d'avoir un système RAG fonctionnel en moins de 10 minutes.
+Installez et lancez OpenRAG avec toutes ses interfaces web en **5 minutes chrono**.
 
 ## Prérequis
 
-Assurez-vous d'avoir installé :
-
 <CardGroup cols={2}>
-  <Card title="Docker" icon="docker">
-    Version 20.10 ou supérieure
+  <Card title="Docker 26.0+" icon="docker">
+    Installation : [Guide](/installation/requirements#logiciels-requis)
   </Card>
-  <Card title="Docker Compose" icon="layer-group">
-    Version 2.0 ou supérieure
+  <Card title="Docker Compose 2.26+" icon="layer-group">
+    Inclus avec Docker moderne
   </Card>
-  <Card title="Git" icon="git">
-    Pour cloner le repository
+  <Card title="16 GB RAM minimum" icon="memory">
+    32 GB recommandés avec GPU
   </Card>
-  <Card title="4GB RAM minimum" icon="memory">
-    8GB recommandés pour de meilleures performances
+  <Card title="50 GB stockage" icon="hard-drive">
+    Pour Docker images + modèle LLM (4.9 GB)
   </Card>
 </CardGroup>
 
-## Installation
+<Warning>
+**Important:** Le système nécessite **16 GB RAM minimum** pour faire fonctionner le LLM llama3.1:8b. Voir [Prérequis détaillés](/installation/requirements) pour plus d'informations.
+</Warning>
 
-### Étape 1 : Cloner le repository
+## Installation en 4 étapes
+
+### 1. Cloner le repository
 
 ```bash
-git clone https://github.com/your-org/openrag.git
+git clone https://github.com/3ntrop1a/openrag.git
 cd openrag
 ```
 
-### Étape 2 : Configuration
-
-Copiez le fichier d'environnement exemple et adaptez-le à vos besoins :
+### 2. Lancer tous les services
 
 ```bash
-cp .env.example .env
+# Démarrer les 10 microservices
+sudo docker-compose up -d
 ```
-
-Éditez `.env` pour configurer vos paramètres :
-
-```bash .env
-# Configuration LLM
-LLM_PROVIDER=ollama  # ou openai, anthropic
-LLM_MODEL=llama3.1:8b
-
-# Si vous utilisez OpenAI
-# OPENAI_API_KEY=sk-...
-
-# Configuration Embedding
-EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
-```
-
-### Étape 3 : Lancer les services
-
-```bash
-docker-compose up -d
-```
-
-Cette commande va :
-- Télécharger toutes les images Docker nécessaires
-- Créer les volumes de données
-- Démarrer tous les services
 
 <Info>
-  Le premier démarrage peut prendre 5-10 minutes selon votre connexion internet.
+**Premier démarrage:** Téléchargement des images Docker et du modèle LLM (4.9 GB). Comptez **10-15 minutes** selon votre connexion.
 </Info>
 
-### Étape 4 : Vérifier le statut
-
-Vérifiez que tous les services sont démarrés :
+### 3. Vérifier que tout est démarré
 
 ```bash
-docker-compose ps
+# Voir l'état des 10 services
+sudo docker-compose ps
 ```
 
-Vous devriez voir tous les services avec le statut `Up` :
+Vous devriez voir **10 services** avec le statut `Up` :
 
 ```
-NAME                    STATUS
-openrag-api            Up
-openrag-orchestrator   Up
-openrag-embedding      Up
-openrag-postgres       Up
-openrag-redis          Up
-openrag-minio          Up
-openrag-qdrant         Up
-openrag-ollama         Up
+NAME                       STATUS
+openrag-api                Up
+openrag-orchestrator       Up
+openrag-embedding          Up  
+openrag-frontend-user      Up  # NOUVEAU: Chat utilisateur
+openrag-frontend-admin     Up  # NOUVEAU: Panel admin
+openrag-postgres           Up
+openrag-redis              Up
+openrag-minio              Up
+openrag-qdrant             Up
+openrag-ollama             Up
 ```
 
-### Étape 5 : Télécharger le modèle LLM (Ollama)
+### 4. Télécharger le modèle LLM
 
-Si vous utilisez Ollama, téléchargez le modèle :
+Si vous utilisez Ollama (configuration par défaut) :
 
 ```bash
 docker exec -it openrag-ollama ollama pull llama3.1:8b
 ```
 
 <Tip>
-  Alternatives légères : `llama3.1:3b`, `gemma:2b`, `phi3:mini`
+Alternatives légères : `llama3.1:3b` (2GB), `gemma:2b` (1.5GB), `phi3:mini` (2.3GB)
 </Tip>
 
-## Premier test
-
-### 1. Vérifier l'API
-
-```bash
-curl http://localhost:8000/health
-```
-
-Réponse attendue :
-```json
-{
-  "status": "healthy",
-  "version": "1.0.0",
-  "services": {
-    "orchestrator": "healthy"
-  }
-}
-```
-
-### 2. Uploader un document de test
-
-Créez un fichier de test :
-
-```bash
-echo "OpenRAG est un système RAG open-source qui permet d'interroger vos documents avec des LLM. Il supporte plusieurs formats de documents et s'intègre avec différents fournisseurs de LLM." > test_document.txt
-```
-
-Uploadez-le :
-
-```bash
-curl -X POST http://localhost:8000/documents/upload \
-  -F "file=@test_document.txt" \
-  -F "collection_id=default"
-```
-
-Réponse :
-```json
-{
-  "document_id": "123e4567-e89b-12d3-a456-426614174000",
-  "filename": "test_document.txt",
-  "status": "processing",
-  "message": "Document uploaded successfully and is being processed"
-}
-```
-
 <Info>
-  Le traitement du document (chunking + embedding + indexation) prend quelques secondes.
-  Attendez 10-15 secondes avant de faire une requête.
+Le téléchargement du modèle llama3.1:8b prend **4.9 GB**. Comptez 5-10 minutes selon votre connexion.
 </Info>
 
-### 3. Poser une question
+## Accès aux interfaces web
 
-```bash
-curl -X POST http://localhost:8000/query \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "Qu'\''est-ce qu'\''OpenRAG ?",
-    "max_results": 3,
-    "use_llm": true
-  }'
-```
-
-Réponse :
-```json
-{
-  "query_id": "456e7890-e89b-12d3-a456-426614174111",
-  "answer": "OpenRAG est un système RAG (Retrieval-Augmented Generation) open-source qui permet d'interroger vos documents en utilisant des modèles de langage (LLM). Il supporte plusieurs formats de documents et peut s'intégrer avec différents fournisseurs de LLM.",
-  "sources": [
-    {
-      "document_id": "123e4567-e89b-12d3-a456-426614174000",
-      "filename": "test_document.txt",
-      "chunk_index": 0,
-      "relevance_score": 0.92
-    }
-  ],
-  "execution_time_ms": 1234,
-  "timestamp": "2024-02-17T10:30:00Z"
-}
-```
-
-## Accès aux interfaces
-
-Une fois démarré, vous pouvez accéder à :
+Ouvrez votre navigateur et testez les interfaces :
 
 <CardGroup cols={2}>
-  <Card title="API Documentation" icon="book" href="http://localhost:8000/docs">
-    Swagger UI interactif - `http://localhost:8000/docs`
+  <Card 
+    title="Chat Utilisateur" 
+    icon="messages"
+    href="http://localhost:8501"
+  >
+    **Interface principale** - http://localhost:8501
+    
+    Chat interactif avec historique et sources
   </Card>
-  <Card title="MinIO Console" icon="database" href="http://localhost:9001">
-    Interface de gestion des fichiers - `http://localhost:9001`
+  <Card 
+    title="Panel Admin" 
+    icon="gauge"
+    href="http://localhost:8502"
+  >
+    **Dashboard administration** - http://localhost:8502
+    
+    Gestion documents, upload, statistiques
   </Card>
-  <Card title="Qdrant Dashboard" icon="vector-square" href="http://localhost:6333/dashboard">
-    Dashboard Qdrant - `http://localhost:6333/dashboard`
+  <Card 
+    title="API Swagger" 
+    icon="code"
+    href="http://localhost:8000/docs"
+  >
+    **Documentation API** - http://localhost:8000/docs
+    
+    Tester l'API REST interactivement
   </Card>
-  <Card title="Grafana (monitoring)" icon="chart-line" href="http://localhost:3000">
-    Monitoring (optionnel) - `http://localhost:3000`
+  <Card 
+    title="Qdrant Dashboard" 
+    icon="database"
+    href="http://localhost:6333/dashboard"
+  >
+    **Base vectorielle** - http://localhost:6333/dashboard
+    
+    Explorer les vecteurs indexés
   </Card>
 </CardGroup>
 
-### Credentials par défaut
+## Premier test
 
-- **MinIO** : admin / admin123456
-- **Grafana** : admin / admin
+### Option 1: Via l'interface Chat (Recommandé)
+
+<Steps>
+  <Step title="Ouvrir l'interface utilisateur">
+    Naviguez vers http://localhost:8501
+  </Step>
+  
+  <Step title="Poser une question de test">
+    Dans le chat, tapez:
+    ```
+    Qu'est-ce qu'OpenRAG et comment ça fonctionne ?
+    ```
+    
+    Cliquez "Envoyer" ou appuyez sur Entrée.
+  </Step>
+  
+  <Step title="Observer la réponse">
+    Le système va:
+    1. Chercher dans les documents (100-200 ms)
+    2. Générer une réponse avec le LLM (5-15 s après premier chargement)
+    3. Afficher les sources en bas avec scores de pertinence
+    
+    **Important:** La première requête prend **50-75 secondes** (chargement du modèle LLM). Les suivantes sont beaucoup plus rapides (5-15s).
+  </Step>
+</Steps>
+
+### Option 2: Via l'API REST (curl)
+
+<Steps>
+  <Step title="Vérifier la santé de l'API">
+    ```bash
+    curl http://localhost:8000/health | jq
+    ```
+    
+    Réponse attendue:
+    ```json
+    {
+      "status": "healthy",
+      "timestamp": "2026-02-18T...",
+      "version": "1.1.0",
+      "services": {
+        "database": "healthy",
+        "redis": "healthy",
+        "vector_store": "healthy",
+        "orchestrator": "healthy"
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Faire une recherche simple (sans LLM)">
+    ```bash
+    curl -X POST http://localhost:8000/query \
+      -H "Content-Type: application/json" \
+      -d '{
+        "query": "configuration téléphone",
+        "collection_id": "default",
+        "max_results": 3,
+        "use_llm": false
+      }' | jq
+    ```
+    
+    Retourne les documents similaires avec scores de pertinence.
+  </Step>
+  
+  <Step title="Faire une requête avec LLM">
+    ```bash
+    curl -X POST http://localhost:8000/query \
+      -H "Content-Type: application/json" \
+      -d '{
+        "query": "Comment configurer un poste Cisco ?",
+        "collection_id": "default",
+        "max_results": 5,
+        "use_llm": true
+      }' | jq -r '.answer'
+    ```
+    
+    <Warning>
+    **Première requête:** 50-75 secondes (chargement llama3.1:8b en RAM)  
+    **Suivantes:** 5-15 secondes
+    </Warning>
+  </Step>
+</Steps>
+
+## Uploader vos propres documents
+
+### Via l'interface admin (Recommandé)
+
+<Steps>
+  <Step title="Ouvrir le panel admin">
+    http://localhost:8502
+  </Step>
+  
+  <Step title="Aller dans Upload">
+    Cliquez sur "Upload" dans la sidebar
+  </Step>
+  
+  <Step title="Sélectionner un fichier PDF">
+    - Cliquez "Browse files"
+    - Choisissez un PDF
+    - Remplissez les métadonnées (optionnel)
+    - Cliquez "Upload"
+  </Step>
+  
+  <Step title="Vérifier le processing">
+    - Allez dans la section "Documents"
+    - Vérifiez le statut (processing → processed)
+    - Comptez 10-30 secondes par document selon la taille
+  </Step>
+</Steps>
+
+### Via l'API
+
+```bash
+curl -X POST http://localhost:8000/documents/upload \
+  -F "file=@mon_document.pdf" \
+  -F "collection_id=default" \
+  -F "metadata={\"category\":\"guide\",\"source\":\"documentation\"}"
+```
+
+## Accès MinIO (Stockage de fichiers)
+
+**URL:** http://localhost:9001  
+**Identifiants:** admin / admin123456
 
 <Warning>
-  Changez ces mots de passe avant de déployer en production !
+**Important:** Changez ce mot de passe avant tout déploiement en production !
 </Warning>
 
-## Télécharger plus de documents
+## Commandes utiles
 
-Vous pouvez uploader des documents de différents formats :
+### Voir les logs en temps réel
 
-### PDF
 ```bash
-curl -X POST http://localhost:8000/documents/upload \
-  -F "file=@rapport.pdf" \
-  -F "collection_id=rapports"
+# Tous les services
+sudo docker-compose logs -f
+
+# Un service spécifique
+sudo docker-compose logs -f orchestrator
+sudo docker-compose logs -f ollama
 ```
 
-### DOCX
+### Redémarrer un service
+
 ```bash
-curl -X POST http://localhost:8000/documents/upload \
-  -F "file=@document.docx" \
-  -F "collection_id=documents"
+sudo docker-compose restart orchestrator
 ```
 
-### Markdown
+### Arrêter tout
+
 ```bash
-curl -X POST http://localhost:8000/documents/upload \
-  -F "file=@README.md" \
-  -F "collection_id=documentation"
+sudo docker-compose down
 ```
 
-## Vérifier les documents
-
-Listez tous les documents uploadés :
+### Nettoyer complètement (données incluses)
 
 ```bash
-curl http://localhost:8000/documents
-```
-
-Obtenir les détails d'un document :
-
-```bash
-curl http://localhost:8000/documents/{document_id}
-```
-
-## Arrêter les services
-
-Pour arrêter tous les services :
-
-```bash
-docker-compose down
-```
-
-Pour arrêter ET supprimer les données :
-
-```bash
-docker-compose down -v
+sudo docker-compose down -v  # Supprime aussi les volumes
 ```
 
 <Warning>
-  L'option `-v` supprime tous les volumes, y compris vos documents et données !
+L'option `-v` supprime tous les volumes, y compris vos documents et données indexées !
 </Warning>
 
 ## Prochaines étapes
 
 <CardGroup cols={2}>
   <Card
-    title="Guide d'upload de documents"
-    icon="file-upload"
-    href="/guides/upload-documents"
+    title="Architecture système"
+    icon="diagram-project"
+    href="/architecture"
   >
-    Apprenez à gérer efficacement vos documents
+    Comprendre le fonctionnement interne d'OpenRAG
   </Card>
   <Card
-    title="Configurer le LLM"
-    icon="robot"
-    href="/guides/llm-configuration"
+    title="Prérequis détaillés"
+    icon="list-check"
+    href="/installation/requirements"
   >
-    Utilisez OpenAI, Anthropic ou d'autres LLM
+    Configuration GPU, optimisations, production
   </Card>
   <Card
-    title="Collections"
-    icon="folder"
-    href="/guides/collections"
+    title="Tests & Validation"
+    icon="flask-vial"
+    href="/tests/overview"
   >
-    Organisez vos documents par collections
+    Tests de charge, performance, qualité
   </Card>
   <Card
     title="API Reference"
     icon="code"
-    href="/api-reference"
+    href="/api-reference/introduction"
   >
-    Documentation complète de l'API
+    Documentation complète de l'API REST
   </Card>
 </CardGroup>
 
-## Troubleshooting
+## Dépannage rapide
 
 ### Les services ne démarrent pas
 
-Vérifiez les logs :
 ```bash
-docker-compose logs -f
+# Vérifiez les logs
+sudo docker-compose logs -f
+
+# Vérifiez l'espace disque (minimum 50 GB)
+df -h
+
+# Vérifiez la RAM (minimum 16 GB)
+free -h
 ```
 
 ### Ollama ne répond pas
 
-Vérifiez que le modèle est bien téléchargé :
 ```bash
+# Vérifiez que le modèle est téléchargé
 docker exec -it openrag-ollama ollama list
+
+# Si absent, téléchargez-le
+docker exec -it openrag-ollama ollama pull llama3.1:8b
 ```
+
+### Requêtes très lentes (>75s)
+
+<Tip>
+**Solution:** Utilisez un GPU ! Voir [Configuration GPU](/installation/requirements#gpu-nvidia-recommandé) pour passer de 50-75s à 1-3s par requête.
+</Tip>
 
 ### Pas de résultats pour les requêtes
 
-Attendez que les documents soient complètement traités :
 ```bash
-curl http://localhost:8000/documents | jq '.documents[] | select(.status == "processed")'
-```
+# Vérifiez que les documents sont traités
+curl http://localhost:8000/documents | jq '.documents[] | {filename, status}'
 
-<Info>
-  Pour plus d'aide, consultez notre [guide de troubleshooting](/guides/troubleshooting) ou rejoignez notre [Discord](https://discord.gg/openrag).
-</Info>
+# Statut "processed" = prêt
+# Statut "processing" = en cours (attendez 10-30s)
+```

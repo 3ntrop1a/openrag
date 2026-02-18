@@ -6,23 +6,23 @@
   },
   "favicon": "/favicon.svg",
   "colors": {
-    "primary": "#0D9373",
-    "light": "#07C983",
-    "dark": "#0D9373",
+    "primary": "#7C3AED",
+    "light": "#A78BFA",
+    "dark": "#6D28D9",
     "anchors": {
-      "from": "#0D9373",
-      "to": "#07C983"
+      "from": "#7C3AED",
+      "to": "#A78BFA"
     }
   },
   "topbarLinks": [
     {
-      "name": "Support",
-      "url": "mailto:support@openrag.io"
+      "name": "GitHub",
+      "url": "https://github.com/3ntrop1a/openrag"
     }
   ],
   "topbarCtaButton": {
-    "name": "GitHub",
-    "url": "https://github.com/your-org/openrag"
+    "name": "Interfaces Web",
+    "url": "http://localhost:8501"
   },
   "tabs": [
     {
@@ -30,105 +30,50 @@
       "url": "api-reference"
     },
     {
-      "name": "Guides",
-      "url": "guides"
-    }
-  ],
-  "anchors": [
-    {
-      "name": "Documentation",
-      "icon": "book-open-cover",
-      "url": "https://docs.openrag.io"
+      "name": "Tests & Validation",
+      "url": "tests"
     },
     {
-      "name": "Community",
-      "icon": "discord",
-      "url": "https://discord.gg/openrag"
-    },
-    {
-      "name": "Blog",
-      "icon": "newspaper",
-      "url": "https://blog.openrag.io"
+      "name": "Composants",
+      "url": "components"
     }
   ],
   "navigation": [
     {
-      "group": "Commencer",
+      "group": "Démarrage",
       "pages": [
         "introduction",
         "quickstart",
-        "architecture"
-      ]
-    },
-    {
-      "group": "Installation",
-      "pages": [
-        "installation/requirements",
-        "installation/docker-setup",
-        "installation/configuration",
-        "installation/first-steps"
-      ]
-    },
-    {
-      "group": "Guides",
-      "pages": [
-        "guides/upload-documents",
-        "guides/query-system",
-        "guides/collections",
-        "guides/llm-configuration",
-        "guides/monitoring"
-      ]
-    },
-    {
-      "group": "Architecture",
-      "pages": [
-        "architecture/overview",
-        "architecture/orchestrator",
-        "architecture/vector-store",
-        "architecture/storage",
-        "architecture/embeddings",
-        "architecture/llm"
+        "architecture",
+        "installation/requirements"
       ]
     },
     {
       "group": "API Reference",
       "pages": [
         "api-reference/introduction",
-        "api-reference/authentication"
+        "api-reference/query/process-query"
       ]
     },
     {
-      "group": "Endpoints",
+      "group": "Tests & Validation",
       "pages": [
-        "api-reference/query/process-query",
-        "api-reference/documents/upload",
-        "api-reference/documents/list",
-        "api-reference/documents/get",
-        "api-reference/documents/delete",
-        "api-reference/collections/list"
+        "tests/overview",
+        "tests/installation-tests",
+        "tests/upload-tests",
+        "tests/query-tests"
       ]
     },
     {
-      "group": "Développement",
+      "group": "Composants Techniques",
       "pages": [
-        "development/local-setup",
-        "development/testing",
-        "development/contributing"
-      ]
-    },
-    {
-      "group": "Déploiement",
-      "pages": [
-        "deployment/production",
-        "deployment/scaling",
-        "deployment/security",
-        "deployment/backup"
+        "components/postgresql",
+        "components/qdrant",
+        "components/ollama"
       ]
     }
   ],
   "footerSocials": {
-    "github": "https://github.com/your-org/openrag",
-    "twitter": "https://twitter.com/openrag",
-    "linkedin": "https://www.linkedin.com/company/openrag"
+    "github": "https://github.com/3ntrop1a/openrag"
   }
 }

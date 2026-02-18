@@ -15,16 +15,16 @@ Un système RAG combine la **recherche d'information** avec la **génération de
 2. **Augmented (Augmentation)** : Enrichit la requête avec le contexte trouvé
 3. **Generation (Génération)** : Génère une réponse cohérente avec un LLM
 
-<img
-  className="block dark:hidden"
-  src="/images/rag-workflow-light.png"
-  alt="RAG Workflow"
-/>
-<img
-  className="hidden dark:block"
-  src="/images/rag-workflow-dark.png"
-  alt="RAG Workflow"
-/>
+### Workflow RAG
+
+```mermaid
+graph LR
+    Q[Question] --> R[Recherche vectorielle]
+    R --> D[Documents pertinents]
+    D --> A[Augmentation contexte]
+    A --> G[Génération LLM]
+    G --> Answer[Réponse avec sources]
+```
 
 ## Fonctionnalités principales
 
@@ -32,108 +32,92 @@ Un système RAG combine la **recherche d'information** avec la **génération de
   <Card
     title="Upload de documents"
     icon="file-upload"
-    href="/guides/upload-documents"
   >
-    Supportez PDF, DOCX, TXT, Markdown et plus encore
+    PDF, DOCX, TXT, Markdown - Processing automatique
   </Card>
   <Card
     title="Recherche sémantique"
     icon="magnifying-glass"
-    href="/guides/query-system"
   >
     Recherche vectorielle avancée avec Qdrant
   </Card>
   <Card
     title="Génération de réponses"
     icon="robot"
-    href="/guides/llm-configuration"
   >
-    Supportez Ollama, OpenAI, Anthropic Claude
+    Ollama, OpenAI, Anthropic Claude
   </Card>
   <Card
     title="Architecture modulaire"
     icon="cubes"
-    href="/architecture/overview"
+    href="/architecture"
   >
-    Services découplés et scalables avec Docker
+    Microservices découplés avec Docker
   </Card>
 </CardGroup>
 
-## Architecture
+## Composants principaux
 
-OpenRAG est composé de plusieurs services spécialisés :
+OpenRAG est composé de **10 services Docker** :
 
-```mermaid
-graph TB
-    User[Utilisateur] --> API[API Gateway]
-    API --> Orchestrator[Orchestrateur]
-    Orchestrator --> MinIO[MinIO Storage]
-    Orchestrator --> Qdrant[Qdrant Vector DB]
-    Orchestrator --> Embed[Embedding Service]
-    Orchestrator --> LLM[LLM Service]
-    Orchestrator --> DB[(PostgreSQL)]
-```
-
-### Composants principaux
-
-- **API Gateway** : Point d'entrée REST pour toutes les requêtes
-- **Orchestrateur** : Coordonne le workflow RAG complet
-- **MinIO** : Stockage d'objets S3-compatible pour les documents
-- **Qdrant** : Base de données vectorielle pour la recherche sémantique
-- **Embedding Service** : Génération d'embeddings avec sentence-transformers
-- **LLM Service** : Interface avec Ollama, OpenAI ou Anthropic
-- **PostgreSQL** : Base de métadonnées et historique
+| Service | Port | Rôle |
+|---------|------|------|
+| **frontend-user** | 8501 | Interface chat utilisateur (Streamlit) |
+| **frontend-admin** | 8502 | Panel admin, upload, stats (Streamlit) |
+| **api** | 8000 | API REST (FastAPI) |
+| **orchestrator** | 8001 | Coordination workflows RAG |
+| **embedding** | 8002 | Génération embeddings (sentence-transformers) |
+| **ollama** | 11434 | Serveur LLM local |
+| **qdrant** | 6333 | Base vectorielle |
+| **postgres** | 5432 | Métadonnées et historique |
+| **redis** | 6379 | Cache et queues |
+| **minio** | 9000/9001 | Stockage fichiers (S3-compatible) |
 
 ## Cas d'usage
 
 <AccordionGroup>
   <Accordion icon="building" title="Base de connaissances d'entreprise">
-    Créez un assistant IA qui connaît tous vos documents internes, procédures et politiques.
+    Créez un assistant IA qui connaît tous vos documents internes, procédures et politiques d'entreprise.
   </Accordion>
   
   <Accordion icon="scale-balanced" title="Assistance juridique">
-    Interrogez rapidement des contrats, jurisprudences et documents légaux.
+    Interrogez rapidement des contrats, jurisprudences et documents légaux avec citations précises.
   </Accordion>
   
   <Accordion icon="graduation-cap" title="Support client">
-    Répondez automatiquement aux questions basées sur votre documentation produit.
+    Répondez automatiquement aux questions basées sur votre documentation produit et FAQ.
   </Accordion>
   
   <Accordion icon="book" title="Recherche académique">
-    Explorez et synthétisez de grandes collections de papiers de recherche.
+    Explorez et synthétisez de grandes collections de papiers de recherche scientifique.
   </Accordion>
 </AccordionGroup>
 
 ## Démarrage rapide
 
 <Steps>
-  <Step title="Installation">
-    Clonez le projet et lancez Docker Compose
+  <Step title="Cloner et lancer">
     ```bash
-    git clone https://github.com/your-org/openrag.git
+    git clone https://github.com/3ntrop1a/openrag.git
     cd openrag
-    docker-compose up -d
+    sudo docker-compose up -d
     ```
   </Step>
   
-  <Step title="Uploadez vos documents">
-    Envoyez vos premiers documents via l'API
+  <Step title="Télécharger le modèle LLM">
     ```bash
-    curl -X POST http://localhost:8000/documents/upload \
-      -F "file=@document.pdf" \
-      -F "collection_id=default"
+    docker exec -it openrag-ollama ollama pull llama3.1:8b
     ```
   </Step>
   
-  <Step title="Posez vos questions">
-    Interrogez vos documents
-    ```bash
-    curl -X POST http://localhost:8000/query \
-      -H "Content-Type: application/json" \
-      -d '{"query": "Quelle est la politique de remboursement ?"}'
-    ```
+  <Step title="Ouvrir l'interface chat">
+    Naviguez vers http://localhost:8501 et posez votre première question !
   </Step>
 </Steps>
+
+<Info>
+**Première fois ?** Le démarrage initial prend 10-15 minutes (téléchargement images Docker + modèle LLM 4.9 GB)
+</Info>
 
 ## Prochaines étapes
 
@@ -143,36 +127,66 @@ graph TB
     icon="rocket"
     href="/quickstart"
   >
-    Installation complète en 10 minutes
+    Installation complète en 5 minutes
   </Card>
   <Card
     title="Architecture détaillée"
     icon="sitemap"
     href="/architecture"
   >
-    Comprenez le fonctionnement interne
+    Comprendre le fonctionnement interne
   </Card>
   <Card
-    title="Reference API"
+    title="Prérequis système"
+    icon="server"
+    href="/installation/requirements"
+  >
+    Configuration minimale: 16 GB RAM, GPU optionnel
+  </Card>
+  <Card
+    title="API Reference"
     icon="code"
-    href="/api-reference"
+    href="/api-reference/introduction"
   >
-    Documentation complète de l'API
-  </Card>
-  <Card
-    title="Guides pratiques"
-    icon="book-open"
-    href="/guides"
-  >
-    Tutoriels et bonnes pratiques
+    Documentation complète de l'API REST
   </Card>
 </CardGroup>
 
-## Support
+## Caractéristiques techniques
 
-Besoin d'aide ? Nous sommes là pour vous :
+<AccordionGroup>
+  <Accordion icon="gauge-high" title="Performance">
+    - **Avec GPU:** 1-3s par requête
+    - **Sans GPU:** 5-15s par requête (après warm-up)
+    - **Recherche vectorielle:** 100-200ms
+    - **Indexation:** 10-30s par document PDF
+  </Accordion>
 
-- 📧 Email: support@openrag.io
-- 💬 Discord: [Rejoindre la communauté](https://discord.gg/openrag)
-- 🐛 Issues: [GitHub Issues](https://github.com/your-org/openrag/issues)
-- 📚 Documentation: [docs.openrag.io](https://docs.openrag.io)
+  <Accordion icon="database" title="Scalabilité">
+    - Architecture microservices horizontalement scalable
+    - Support de millions de documents
+    - Redis pour cache distribué
+    - PostgreSQL pour métadonnées
+    - Qdrant pour recherche vectorielle haute performance
+  </Accordion>
+
+  <Accordion icon="shield-halved" title="Sécurité">
+    - Données stockées localement (pas de cloud tiers)
+    - Isolation des services Docker
+    - Support des LLM locaux (Ollama) pour confidentialité totale
+    - Compatible avec LLM cloud (OpenAI, Claude) si souhaité
+  </Accordion>
+
+  <Accordion icon="puzzle-piece" title="Extensibilité">
+    - Intégration facile de nouveaux formats de documents
+    - Support multi-LLM (Ollama, OpenAI, Anthropic)
+    - API REST pour intégration dans vos applications
+    - Collection multiples pour segmentation des documents
+  </Accordion>
+</AccordionGroup>
+
+## Support et contributions
+
+- 🐛 **Issues:** [GitHub Issues](https://github.com/3ntrop1a/openrag/issues)
+- 💻 **Code source:** [github.com/3ntrop1a/openrag](https://github.com/3ntrop1a/openrag)
+- 📖 **Documentation:** Cette documentation Mintlify
