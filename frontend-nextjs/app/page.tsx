@@ -37,7 +37,7 @@ export default function Home() {
         body: JSON.stringify({
           query: input,
           max_results: 5,
-          use_llm: false
+          use_llm: true
         })
       });
 
@@ -49,7 +49,7 @@ export default function Home() {
       
       const assistantMessage: Message = {
         role: 'assistant',
-        content: data.answer || 'Voici les documents les plus pertinents trouvés.',
+        content: data.answer || 'Désolé, je n\'ai pas pu générer de réponse.',
         sources: data.sources || []
       };
 
@@ -93,22 +93,6 @@ export default function Home() {
                   : 'bg-muted'
               }`}>
                 <p className="whitespace-pre-wrap">{message.content}</p>
-                
-                {message.sources && message.sources.length > 0 && (
-                  <div className="mt-4 space-y-2 border-t pt-3">
-                    <p className="text-sm font-semibold">Sources ({message.sources.length}):</p>
-                    {message.sources.map((source, sidx) => (
-                      <div key={sidx} className="flex items-start gap-2 text-sm">
-                        <Badge variant="outline" className="shrink-0">
-                          {(source.relevance_score * 100).toFixed(0)}%
-                        </Badge>
-                        <span className="text-xs opacity-80 break-all">
-                          {source.filename}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </Card>
             </div>
           ))}
@@ -118,7 +102,7 @@ export default function Home() {
               <Card className="max-w-[80%] p-4 bg-muted">
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm">Recherche en cours...</span>
+                  <span className="text-sm">Génération de la réponse...</span>
                 </div>
               </Card>
             </div>
