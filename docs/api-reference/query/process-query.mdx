@@ -1,0 +1,307 @@
+---
+title: 'Process Query'
+api: 'POST /query'
+description: 'Traite une requête utilisateur et retourne une réponse générée avec le LLM'
+---
+
+# Process Query
+
+Endpoint principal pour interroger le système RAG. Effectue une recherche sémantique dans vos documents et génère une réponse intelligente basée sur le contexte trouvé.
+
+## Endpoint
+
+```
+POST /query
+```
+
+## Request Body
+
+<ParamField body="query" type="string" required>
+  La question ou requête de l'utilisateur
+</ParamField>
+
+<ParamField body="collection_id" type="string">
+  ID de la collection à interroger (défaut: toutes les collections)
+</ParamField>
+
+<ParamField body="max_results" type="integer" default="5">
+  Nombre maximum de documents sources à récupérer (1-20)
+</ParamField>
+
+<ParamField body="use_llm" type="boolean" default="true">
+  Utiliser le LLM pour générer une réponse. Si false, retourne uniquement les sources pertinentes.
+</ParamField>
+
+<ParamField body="metadata_filter" type="object">
+  Filtres de métadonnées pour affiner la recherche
+  
+  ```json
+  {
+    "document_type": "pdf",
+    "category": "finance"
+  }
+  ```
+</ParamField>
+
+## Response
+
+<ResponseField name="query_id" type="string">
+  Identifiant unique de la requête
+</ResponseField>
+
+<ResponseField name="answer" type="string">
+  Réponse générée par le LLM (null si use_llm=false)
+</ResponseField>
+
+<ResponseField name="sources" type="array">
+  Liste des documents sources utilisés
+  
+  <Expandable title="properties">
+    <ResponseField name="document_id" type="string">
+      ID du document source
+    </ResponseField>
+    
+    <ResponseField name="filename" type="string">
+      Nom du fichier source
+    </ResponseField>
+    
+    <ResponseField name="chunk_index" type="integer">
+      Index du chunk dans le document
+    </ResponseField>
+    
+    <ResponseField name="relevance_score" type="float">
+      Score de pertinence (0-1)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="execution_time_ms" type="integer">
+  Temps d'exécution en millisecondes
+</ResponseField>
+
+<ResponseField name="timestamp" type="string">
+  Timestamp ISO 8601 de la requête
+</ResponseField>
+
+## Exemples
+
+<RequestExample>
+
+```bash cURL
+curl -X POST http://localhost:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "Quelle est la politique de remboursement ?",
+    "max_results": 3,
+    "use_llm": true
+  }'
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    "http://localhost:8000/query",
+    json={
+        "query": "Quelle est la politique de remboursement ?",
+        "max_results": 3,
+        "use_llm": True
+    }
+)
+
+result = response.json()
+print(result["answer"])
+for source in result["sources"]:
+    print(f"Source: {source['filename']} (score: {source['relevance_score']})")
+```
+
+```javascript JavaScript
+const response = await fetch('http://localhost:8000/query', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    query: 'Quelle est la politique de remboursement ?',
+    max_results: 3,
+    use_llm: true
+  })
+});
+
+const result = await response.json();
+console.log(result.answer);
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json Succès
+{
+  "query_id": "123e4567-e89b-12d3-a456-426614174000",
+  "answer": "Selon nos documents, la politique de remboursement permet un retour sous 30 jours pour tous les produits non utilisés. Le remboursement est effectué sous 7 jours ouvrables sur le moyen de paiement original. Les frais de retour sont à la charge du client sauf en cas de produit défectueux.",
+  "sources": [
+    {
+      "document_id": "doc-123",
+      "filename": "politique_remboursement.pdf",
+      "chunk_index": 2,
+      "relevance_score": 0.94
+    },
+    {
+      "document_id": "doc-456",
+      "filename": "cgv.pdf",
+      "chunk_index": 8,
+      "relevance_score": 0.87
+    },
+    {
+      "document_id": "doc-123",
+      "filename": "politique_remboursement.pdf",
+      "chunk_index": 3,
+      "relevance_score": 0.82
+    }
+  ],
+  "execution_time_ms": 1234,
+  "timestamp": "2024-02-17T10:30:45.123Z"
+}
+```
+
+```json Sans LLM (use_llm=false)
+{
+  "query_id": "123e4567-e89b-12d3-a456-426614174001",
+  "answer": null,
+  "sources": [
+    {
+      "document_id": "doc-123",
+      "filename": "politique_remboursement.pdf",
+      "chunk_index": 2,
+      "relevance_score": 0.94
+    }
+  ],
+  "execution_time_ms": 234,
+  "timestamp": "2024-02-17T10:31:12.456Z"
+}
+```
+
+```json Aucun résultat
+{
+  "query_id": "123e4567-e89b-12d3-a456-426614174002",
+  "answer": "Je n'ai pas trouvé de documents pertinents pour répondre à votre question.",
+  "sources": [],
+  "execution_time_ms": 456,
+  "timestamp": "2024-02-17T10:32:00.789Z"
+}
+```
+
+</ResponseExample>
+
+## Codes d'erreur
+
+<ResponseField name="400" type="Bad Request">
+  Requête invalide (paramètres manquants ou incorrects)
+</ResponseField>
+
+<ResponseField name="500" type="Internal Server Error">
+  Erreur serveur (LLM indisponible, erreur de traitement)
+</ResponseField>
+
+<ResponseField name="504" type="Gateway Timeout">
+  Timeout de la requête (>60 secondes)
+</ResponseField>
+
+## Bonnes pratiques
+
+<AccordionGroup>
+  <Accordion title="Optimiser les performances">
+    - Ajustez `max_results` selon vos besoins (moins = plus rapide)
+    - Utilisez `use_llm=false` pour une recherche pure sans génération
+    - Ajoutez des filtres de métadonnées pour affiner la recherche
+  </Accordion>
+  
+  <Accordion title="Améliorer la qualité des réponses">
+    - Formulez des questions claires et précises
+    - Utilisez des termes spécifiques à votre domaine
+    - Augmentez `max_results` pour plus de contexte (5-10)
+  </Accordion>
+  
+  <Accordion title="Utiliser les filtres de métadonnées">
+    ```json
+    {
+      "query": "Quelle est la procédure ?",
+      "metadata_filter": {
+        "department": "HR",
+        "year": "2024"
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Gérer les erreurs">
+    ```python
+    try:
+        response = requests.post(url, json=data, timeout=60)
+        response.raise_for_status()
+        result = response.json()
+    except requests.Timeout:
+        print("La requête a pris trop de temps")
+    except requests.HTTPError as e:
+        print(f"Erreur HTTP: {e}")
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Limitations
+
+<Warning>
+  - **Timeout:** 60 secondes maximum par requête
+  - **Longueur de requête:** 1000 caractères maximum
+  - **Contexte LLM:** Limité par la fenêtre de contexte du modèle (~2048-4096 tokens)
+</Warning>
+
+## Notes techniques
+
+### Processus de recherche
+
+1. **Embedding de la requête** : Conversion en vecteur (384 dimensions)
+2. **Recherche vectorielle** : Recherche des K plus proches voisins dans Qdrant (cosine similarity)
+3. **Filtrage** : Application des filtres de métadonnées si fournis
+4. **Seuil de pertinence** : Seuls les résultats avec score > 0.7 sont conservés
+5. **Récupération du contenu** : Obtention du texte complet des chunks
+6. **Génération LLM** : Construction du prompt et génération de la réponse
+
+### Format du prompt LLM
+
+```
+Contexte fourni :
+Document 1:
+[Contenu du chunk le plus pertinent]
+
+Document 2:
+[Contenu du 2ème chunk]
+
+...
+
+Question : [Votre question]
+
+Répondez à la question en vous basant UNIQUEMENT sur le contexte fourni ci-dessus.
+Si le contexte ne contient pas assez d'informations pour répondre, dites-le clairement.
+Citez les numéros des documents sources que vous utilisez dans votre réponse.
+```
+
+## Voir aussi
+
+<CardGroup cols={2}>
+  <Card
+    title="Upload Documents"
+    icon="file-upload"
+    href="/api-reference/documents/upload"
+  >
+    Ajouter des documents au système
+  </Card>
+  <Card
+    title="Collections"
+    icon="folder"
+    href="/guides/collections"
+  >
+    Organiser vos documents
+  </Card>
+</CardGroup>

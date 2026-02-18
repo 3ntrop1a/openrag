@@ -1,0 +1,276 @@
+services:
+  # ============================================
+  # Infrastructure Services
+  # ============================================
+  
+  # PostgreSQL - Metadata & Document Store
+  postgres:
+    image: postgres:16-alpine
+    container_name: openrag-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-openrag}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-openrag123}
+      POSTGRES_DB: ${POSTGRES_DB:-openrag_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-openrag}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - openrag-network
+
+  # Redis - Cache & Task Queue
+  redis:
+    image: redis:7-alpine
+    container_name: openrag-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - openrag-network
+
+  # MinIO - Object Storage
+  minio:
+    image: minio/minio:latest
+    container_name: openrag-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-admin123456}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - openrag-network
+
+  # Qdrant - Vector Database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: openrag-qdrant
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    environment:
+      QDRANT__SERVICE__HTTP_PORT: 6333
+      QDRANT__SERVICE__GRPC_PORT: 6334
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - openrag-network
+
+  # Ollama - LLM Server
+  ollama:
+    image: ollama/ollama:latest
+    container_name: openrag-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    # GPU support (décommentez si vous avez un GPU Nvidia)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    networks:
+      - openrag-network
+
+  # ============================================
+  # Application Services
+  # ============================================
+
+  # Embedding Service
+  embedding-service:
+    build:
+      context: ./backend
+      dockerfile: services/embedding/Dockerfile
+    container_name: openrag-embedding
+    environment:
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+      - EMBEDDING_DEVICE=${EMBEDDING_DEVICE:-cpu}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - ./backend/services/embedding:/app
+      - models_cache:/root/.cache
+    depends_on:
+      - redis
+    networks:
+      - openrag-network
+    restart: unless-stopped
+
+  # Orchestrator Service
+  orchestrator:
+    build:
+      context: ./backend
+      dockerfile: services/orchestrator/Dockerfile
+    container_name: openrag-orchestrator
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-openrag}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-openrag123}
+      - POSTGRES_DB=${POSTGRES_DB:-openrag_db}
+      - REDIS_HOST=redis
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-admin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-admin123456}
+      - OLLAMA_HOST=http://ollama:11434
+      - LLM_MODEL=${LLM_MODEL:-llama3.1:8b}
+    volumes:
+      - ./backend/services/orchestrator:/app
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+      - minio
+      - ollama
+      - embedding-service
+    networks:
+      - openrag-network
+    restart: unless-stopped
+
+  # API Gateway
+  api:
+    build:
+      context: ./backend
+      dockerfile: api/Dockerfile
+    container_name: openrag-api
+    environment:
+      - API_HOST=${API_HOST:-0.0.0.0}
+      - API_PORT=${API_PORT:-8000}
+      - POSTGRES_HOST=postgres
+      - REDIS_HOST=redis
+      - ORCHESTRATOR_URL=http://orchestrator:8001
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/api:/app
+    depends_on:
+      - postgres
+      - redis
+      - orchestrator
+    networks:
+      - openrag-network
+    restart: unless-stopped
+
+  # ============================================
+  # Monitoring & Observability (Optional)
+  # ============================================
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: openrag-prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - openrag-network
+    profiles:
+      - monitoring
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: openrag-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - openrag-network
+    profiles:
+      - monitoring
+
+  # ============================================
+  # Frontend Services
+  # ============================================
+  
+  # Frontend User - Interface utilisateur Streamlit
+  frontend-user:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: openrag-frontend-user
+    command: streamlit run app_user.py --server.port=8501 --server.address=0.0.0.0
+    environment:
+      - API_URL=http://api:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api
+    networks:
+      - openrag-network
+    restart: unless-stopped
+
+  # Frontend Admin - Interface administration Streamlit
+  frontend-admin:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: openrag-frontend-admin
+    command: streamlit run app_admin.py --server.port=8502 --server.address=0.0.0.0
+    environment:
+      - API_URL=http://api:8000
+      - QDRANT_URL=http://qdrant:6333
+    ports:
+      - "8502:8502"
+    depends_on:
+      - api
+      - qdrant
+    networks:
+      - openrag-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  qdrant_data:
+  ollama_data:
+  models_cache:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  openrag-network:
+    driver: bridge

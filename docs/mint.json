@@ -1,0 +1,134 @@
+{
+  "name": "OpenRAG",
+  "logo": {
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#0D9373",
+    "light": "#07C983",
+    "dark": "#0D9373",
+    "anchors": {
+      "from": "#0D9373",
+      "to": "#07C983"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "Support",
+      "url": "mailto:support@openrag.io"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "GitHub",
+    "url": "https://github.com/your-org/openrag"
+  },
+  "tabs": [
+    {
+      "name": "API Reference",
+      "url": "api-reference"
+    },
+    {
+      "name": "Guides",
+      "url": "guides"
+    }
+  ],
+  "anchors": [
+    {
+      "name": "Documentation",
+      "icon": "book-open-cover",
+      "url": "https://docs.openrag.io"
+    },
+    {
+      "name": "Community",
+      "icon": "discord",
+      "url": "https://discord.gg/openrag"
+    },
+    {
+      "name": "Blog",
+      "icon": "newspaper",
+      "url": "https://blog.openrag.io"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Commencer",
+      "pages": [
+        "introduction",
+        "quickstart",
+        "architecture"
+      ]
+    },
+    {
+      "group": "Installation",
+      "pages": [
+        "installation/requirements",
+        "installation/docker-setup",
+        "installation/configuration",
+        "installation/first-steps"
+      ]
+    },
+    {
+      "group": "Guides",
+      "pages": [
+        "guides/upload-documents",
+        "guides/query-system",
+        "guides/collections",
+        "guides/llm-configuration",
+        "guides/monitoring"
+      ]
+    },
+    {
+      "group": "Architecture",
+      "pages": [
+        "architecture/overview",
+        "architecture/orchestrator",
+        "architecture/vector-store",
+        "architecture/storage",
+        "architecture/embeddings",
+        "architecture/llm"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "api-reference/introduction",
+        "api-reference/authentication"
+      ]
+    },
+    {
+      "group": "Endpoints",
+      "pages": [
+        "api-reference/query/process-query",
+        "api-reference/documents/upload",
+        "api-reference/documents/list",
+        "api-reference/documents/get",
+        "api-reference/documents/delete",
+        "api-reference/collections/list"
+      ]
+    },
+    {
+      "group": "Développement",
+      "pages": [
+        "development/local-setup",
+        "development/testing",
+        "development/contributing"
+      ]
+    },
+    {
+      "group": "Déploiement",
+      "pages": [
+        "deployment/production",
+        "deployment/scaling",
+        "deployment/security",
+        "deployment/backup"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/your-org/openrag",
+    "twitter": "https://twitter.com/openrag",
+    "linkedin": "https://www.linkedin.com/company/openrag"
+  }
+}

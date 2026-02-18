@@ -1,0 +1,262 @@
+---
+title: 'Introduction API'
+description: 'Introduction à l\'API REST OpenRAG'
+---
+
+# API Reference
+
+Bienvenue dans la documentation de l'API OpenRAG. Cette API REST vous permet d'interagir avec le système RAG pour uploader des documents, poser des questions et gérer vos collections.
+
+## URL de base
+
+```
+http://localhost:8000
+```
+
+En production, remplacez par l'URL de votre serveur.
+
+## Authentification
+
+<Warning>
+  La version actuelle ne nécessite pas d'authentification. 
+  L'authentification sera ajoutée dans une version future pour la production.
+</Warning>
+
+## Format des réponses
+
+Toutes les réponses de l'API sont au format JSON.
+
+```json
+{
+  "status": "success",
+  "data": { ... }
+}
+```
+
+En cas d'erreur :
+
+```json
+{
+  "detail": "Message d'erreur descriptif"
+}
+```
+
+## Headers recommandés
+
+```http
+Content-Type: application/json
+Accept: application/json
+```
+
+## Rate Limiting
+
+<Info>
+  Actuellement, aucune limite de taux n'est appliquée.
+  En production, une limite de 100 requêtes/minute par IP sera appliquée.
+</Info>
+
+## Endpoints disponibles
+
+### Requêtes (RAG)
+
+<CardGroup cols={1}>
+  <Card
+    title="POST /query"
+    icon="message-question"
+    href="/api-reference/query/process-query"
+  >
+    Traiter une requête utilisateur et générer une réponse
+  </Card>
+</CardGroup>
+
+### Gestion des documents
+
+<CardGroup cols={2}>
+  <Card
+    title="POST /documents/upload"
+    icon="file-upload"
+    href="/api-reference/documents/upload"
+  >
+    Upload un nouveau document
+  </Card>
+  <Card
+    title="GET /documents"
+    icon="list"
+    href="/api-reference/documents/list"
+  >
+    Lister tous les documents
+  </Card>
+  <Card
+    title="GET /documents/{id}"
+    icon="file"
+    href="/api-reference/documents/get"
+  >
+    Récupérer un document spécifique
+  </Card>
+  <Card
+    title="DELETE /documents/{id}"
+    icon="trash"
+    href="/api-reference/documents/delete"
+  >
+    Supprimer un document
+  </Card>
+</CardGroup>
+
+### Collections
+
+<CardGroup cols={1}>
+  <Card
+    title="GET /collections"
+    icon="folder"
+    href="/api-reference/collections/list"
+  >
+    Lister toutes les collections
+  </Card>
+</CardGroup>
+
+### Système
+
+<CardGroup cols={2}>
+  <Card
+    title="GET /"
+    icon="home"
+  >
+    Informations sur l'API
+  </Card>
+  <Card
+    title="GET /health"
+    icon="heart-pulse"
+  >
+    Vérification de santé
+  </Card>
+</CardGroup>
+
+## Codes HTTP
+
+| Code | Description |
+|------|-------------|
+| 200 | Succès |
+| 400 | Requête invalide |
+| 404 | Ressource non trouvée |
+| 500 | Erreur serveur |
+| 504 | Timeout |
+
+## Exemples de clients
+
+### Python
+
+```python
+import requests
+
+# Configuration
+BASE_URL = "http://localhost:8000"
+
+# Upload un document
+with open("document.pdf", "rb") as f:
+    response = requests.post(
+        f"{BASE_URL}/documents/upload",
+        files={"file": f}
+    )
+    print(response.json())
+
+# Poser une question
+response = requests.post(
+    f"{BASE_URL}/query",
+    json={
+        "query": "Quelle est la politique de remboursement ?",
+        "max_results": 5
+    }
+)
+print(response.json())
+```
+
+### JavaScript/Node.js
+
+```javascript
+const axios = require('axios');
+const FormData = require('form-data');
+const fs = require('fs');
+
+const BASE_URL = 'http://localhost:8000';
+
+// Upload un document
+async function uploadDocument() {
+  const form = new FormData();
+  form.append('file', fs.createReadStream('document.pdf'));
+  
+  const response = await axios.post(
+    `${BASE_URL}/documents/upload`,
+    form,
+    { headers: form.getHeaders() }
+  );
+  
+  console.log(response.data);
+}
+
+// Poser une question
+async function query() {
+  const response = await axios.post(
+    `${BASE_URL}/query`,
+    {
+      query: 'Quelle est la politique de remboursement ?',
+      max_results: 5
+    }
+  );
+  
+  console.log(response.data);
+}
+```
+
+### cURL
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# Upload un document
+curl -X POST http://localhost:8000/documents/upload \
+  -F "file=@document.pdf"
+
+# Poser une question
+curl -X POST http://localhost:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "Quelle est la politique de remboursement ?",
+    "max_results": 5
+  }'
+
+# Lister les documents
+curl http://localhost:8000/documents
+```
+
+## Documentation interactive
+
+OpenRAG fournit une documentation interactive Swagger UI accessible à :
+
+```
+http://localhost:8000/docs
+```
+
+Vous pouvez y tester directement tous les endpoints !
+
+## Webhooks (à venir)
+
+Les webhooks permettront de recevoir des notifications lors de :
+- Fin de traitement d'un document
+- Erreurs de traitement
+- Nouveaux documents ajoutés
+
+## SDK (à venir)
+
+Des SDKs officiels seront bientôt disponibles pour :
+- Python
+- JavaScript/TypeScript
+- Go
+- Java
+
+## Support
+
+Pour toute question sur l'API :
+- 📚 Documentation : [docs.openrag.io](https://docs.openrag.io)
+- 💬 Discord : [discord.gg/openrag](https://discord.gg/openrag)
+- 🐛 Issues : [github.com/openrag/issues](https://github.com/openrag/issues)

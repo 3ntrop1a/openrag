@@ -1,0 +1,285 @@
+---
+title: PostgreSQL
+description: 'PostgreSQL configuration and role in OpenRAG'
+---
+
+## PostgreSQL in OpenRAG
+
+PostgreSQL 16 serves as the primary metadata and relational data store for OpenRAG.
+
+### Configuration
+
+**Image**: `postgres:16-alpine`
+
+**Environment Variables**:
+```yaml
+POSTGRES_USER: openrag
+POSTGRES_PASSWORD: openrag123
+POSTGRES_DB: openrag_db
+```
+
+**Port**: 5432 (exposed to host)
+
+**Volume**: Persistent storage at `postgres_data:/var/lib/postgresql/data`
+
+### Database Schema
+
+OpenRAG uses 5 main tables:
+
+#### 1. documents
+
+Stores document metadata.
+
+```sql
+CREATE TABLE documents (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    filename VARCHAR(255) NOT NULL,
+    file_type VARCHAR(50),
+    size BIGINT,
+    collection_id VARCHAR(100),
+    status VARCHAR(50) DEFAULT 'uploaded',
+    storage_path TEXT,
+    metadata JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    processed_at TIMESTAMP
+);
+
+CREATE INDEX idx_documents_status ON documents(status);
+CREATE INDEX idx_documents_collection ON documents(collection_id);
+```
+
+**Status Values**:
+- `uploaded`: File uploaded, queued for processing
+- `processing`: Currently being processed
+- `processed`: Successfully processed and indexed
+- `failed`: Processing failed
+
+#### 2. document_chunks
+
+Stores text chunks extracted from documents.
+
+```sql
+CREATE TABLE document_chunks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    document_id UUID REFERENCES documents(id) ON DELETE CASCADE,
+    chunk_index INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    vector_id VARCHAR(255),
+    metadata JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_chunks_document ON document_chunks(document_id);
+CREATE INDEX idx_chunks_vector ON document_chunks(vector_id);
+```
+
+**Purpose**: Each chunk represents a semantically coherent piece of text (typically 500-1000 characters).
+
+#### 3. queries
+
+Tracks user queries and responses.
+
+```sql
+CREATE TABLE queries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    query_text TEXT NOT NULL,
+    response_text TEXT,
+    execution_time_ms INTEGER,
+    sources JSONB,
+    metadata JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_queries_created ON queries(created_at DESC);
+```
+
+#### 4. processing_jobs
+
+Tracks background processing jobs.
+
+```sql
+CREATE TABLE processing_jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    document_id UUID REFERENCES documents(id) ON DELETE CASCADE,
+    job_type VARCHAR(50) NOT NULL,
+    status VARCHAR(50) DEFAULT 'pending',
+    error_message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP
+);
+
+CREATE INDEX idx_jobs_status ON processing_jobs(status);
+CREATE INDEX idx_jobs_document ON processing_jobs(document_id);
+```
+
+#### 5. collections
+
+Manages document collections (logical grouping).
+
+```sql
+CREATE TABLE collections (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) UNIQUE NOT NULL,
+    description TEXT,
+    metadata JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Connection Details
+
+**Driver**: asyncpg (asynchronous PostgreSQL driver for Python)
+
+**Connection String**:
+```
+postgresql://openrag:openrag123@postgres:5432/openrag_db
+```
+
+**Connection Pooling**: Managed by asyncpg
+
+### Initialization
+
+Database is initialized automatically via `init.sql`:
+
+```bash
+# Executed on first container start
+docker-entrypoint-initdb.d/init.sql
+```
+
+**Manual Initialization** (if needed):
+```bash
+sudo docker exec openrag-postgres psql -U openrag -d openrag_db -f /docker-entrypoint-initdb.d/init.sql
+```
+
+### Health Check
+
+```bash
+curl http://localhost:8000/health
+```
+
+The API includes PostgreSQL connectivity in its health check.
+
+### Common Operations
+
+**Connect to Database**:
+```bash
+sudo docker exec -it openrag-postgres psql -U openrag -d openrag_db
+```
+
+**View Documents**:
+```sql
+SELECT id, filename, status, created_at 
+FROM documents 
+ORDER BY created_at DESC 
+LIMIT 10;
+```
+
+**Count Chunks**:
+```sql
+SELECT COUNT(*) as total_chunks FROM document_chunks;
+```
+
+**Processing Statistics**:
+```sql
+SELECT 
+    status, 
+    COUNT(*) as count 
+FROM documents 
+GROUP BY status;
+```
+
+**Recent Queries**:
+```sql
+SELECT 
+    query_text, 
+    execution_time_ms,
+    created_at 
+FROM queries 
+ORDER BY created_at DESC 
+LIMIT 5;
+```
+
+### Backup and Restore
+
+**Backup Database**:
+```bash
+sudo docker exec openrag-postgres pg_dump -U openrag -d openrag_db > backup.sql
+```
+
+**Restore Database**:
+```bash
+sudo docker exec -i openrag-postgres psql -U openrag -d openrag_db < backup.sql
+```
+
+### Performance Tuning
+
+For production, consider adjusting PostgreSQL configuration:
+
+```yaml
+# docker-compose.yml
+postgres:
+  command:
+    - "postgres"
+    - "-c"
+    - "max_connections=200"
+    - "-c"
+    - "shared_buffers=256MB"
+    - "-c"
+    - "effective_cache_size=1GB"
+```
+
+### Migrations
+
+Schema changes should be managed via migration files:
+
+```bash
+backend/database/migrations/
+  001_initial_schema.sql
+  002_add_collections.sql
+```
+
+Execute migrations:
+```bash
+sudo docker exec openrag-postgres psql -U openrag -d openrag_db -f /migrations/001_initial_schema.sql
+```
+
+### Monitoring
+
+Check database size:
+```sql
+SELECT pg_size_pretty(pg_database_size('openrag_db'));
+```
+
+Active connections:
+```sql
+SELECT COUNT(*) FROM pg_stat_activity WHERE datname = 'openrag_db';
+```
+
+### Troubleshooting
+
+**Connection Issues**:
+```bash
+# Check if PostgreSQL is running
+sudo docker ps | grep postgres
+
+# View logs
+sudo docker logs openrag-postgres --tail=50
+```
+
+**Type Casting Errors**:
+Ensure explicit type casts in queries:
+```python
+# Good
+await conn.execute(
+    "UPDATE documents SET status = $1::text WHERE id = $2::uuid",
+    status, document_id
+)
+
+# Bad (may cause asyncpg errors)
+await conn.execute(
+    "UPDATE documents SET status = $1 WHERE id = $2",
+    status, document_id
+)
+```
