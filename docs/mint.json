@@ -58,6 +58,8 @@
     {
       "group": "Components",
       "pages": [
+        "components/embedding-chunking",
+        "components/streamlit",
         "components/postgresql",
         "components/qdrant",
         "components/ollama"

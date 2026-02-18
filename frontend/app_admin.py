@@ -1,94 +1,283 @@
 """
-Interface administrateur OpenRAG - Gestion du système
+OpenRAG Admin Interface - System Management
 """
 
 import streamlit as st
 import requests
 import pandas as pd
+import os
 from datetime import datetime
 from typing import List, Dict
 import json
 
-# Configuration
-API_URL = "http://localhost:8000"
-QDRANT_URL = "http://localhost:6333"
+# Configuration - use environment variable or fallback to Docker service name
+API_URL = os.getenv("API_URL", "http://api:8000")
+QDRANT_URL = os.getenv("QDRANT_URL", "http://qdrant:6333")
 
-# Configuration de la page
+# Page configuration
 st.set_page_config(
-    page_title="OpenRAG - Administration",
+    page_title="OpenRAG - Admin Dashboard",
     page_icon="⚙️",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# Styles CSS
+# Modern black & white CSS - NextJS inspired
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #d32f2f;
-        text-align: center;
+    /* Global styles */
+    .stApp {
+        background-color: #000000;
+        color: #ffffff;
+    }
+    
+    /* Hide default Streamlit elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Main container */
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        max-width: 1400px;
+    }
+    
+    /* Header */
+    .app-header {
+        background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
+        padding: 2rem;
+        border-radius: 12px;
+        border: 1px solid #2a2a2a;
         margin-bottom: 2rem;
     }
+    
+    .app-title {
+        font-size: 2rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin: 0;
+        color: #ffffff;
+    }
+    
+    .app-subtitle {
+        font-size: 0.9rem;
+        color: #888888;
+        margin-top: 0.5rem;
+    }
+    
+    /* Stats cards */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+        margin: 2rem 0;
+    }
+    
     .stat-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
         padding: 1.5rem;
-        border-radius: 0.5rem;
-        color: white;
-        text-align: center;
+        transition: all 0.2s ease;
     }
-    .stat-number {
+    
+    .stat-card:hover {
+        border-color: #ffffff;
+        transform: translateY(-2px);
+    }
+    
+    .stat-value {
         font-size: 2.5rem;
-        font-weight: bold;
+        font-weight: 700;
+        color: #ffffff;
+        line-height: 1;
     }
+    
     .stat-label {
-        font-size: 1rem;
-        opacity: 0.9;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #666666;
+        margin-top: 0.5rem;
     }
-    .success-box {
-        background-color: #d4edda;
-        border: 1px solid #c3e6cb;
-        padding: 1rem;
-        border-radius: 0.3rem;
-        color: #155724;
+    
+    .stat-change {
+        font-size: 0.875rem;
+        color: #888888;
+        margin-top: 0.25rem;
     }
-    .error-box {
-        background-color: #f8d7da;
-        border: 1px solid #f5c6cb;
+    
+    /* Tables */
+    .dataframe {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+    }
+    
+    .dataframe th {
+        background: #0a0a0a;
+        color: #888888;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.1em;
         padding: 1rem;
-        border-radius: 0.3rem;
-        color: #721c24;
+        border-bottom: 1px solid #2a2a2a;
+    }
+    
+    .dataframe td {
+        padding: 1rem;
+        border-bottom: 1px solid #1a1a1a;
+        color: #ffffff;
+    }
+    
+    /* Buttons */
+    .stButton > button {
+        background: #ffffff;
+        color: #000000;
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+    
+    .stButton > button:hover {
+        background: #e0e0e0;
+        transform: translateY(-1px);
+    }
+    
+    /* File uploader */
+    .stFileUploader {
+        background: #1a1a1a;
+        border: 2px dashed #2a2a2a;
+        border-radius: 8px;
+        padding: 2rem;
+    }
+    
+    .stFileUploader:hover {
+        border-color: #ffffff;
+    }
+    
+    /* Alerts */
+    .stSuccess {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-left: 3px solid #ffffff;
+        color: #ffffff;
+    }
+    
+    .stError {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-left: 3px solid #666666;
+        color: #ffffff;
+    }
+    
+    /* Inputs */
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea,
+    .stSelectbox > div > div > select {
+        background-color: #1a1a1a;
+        color: #ffffff;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+    }
+    
+    .stTextInput > div > div > input:focus,
+    .stTextArea > div > div > textarea:focus {
+        border-color: #ffffff;
+        box-shadow: 0 0 0 1px #ffffff;
+    }
+    
+    /* Expander */
+    .streamlit-expanderHeader {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        color: #ffffff;
+    }
+    
+    .streamlit-expanderHeader:hover {
+        border-color: #ffffff;
+    }
+    
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #0a0a0a;
+        border-right: 1px solid #2a2a2a;
+    }
+    
+    /* Radio buttons */
+    .stRadio > div {
+        background: #1a1a1a;
+        padding: 1rem;
+        border-radius: 8px;
+        border: 1px solid #2a2a2a;
+    }
+    
+    .stRadio label {
+        color: #ffffff;
+        padding: 0.5rem;
+    }
+    
+    /* Divider */
+    hr {
+        border-color: #2a2a2a;
+        margin: 2rem 0;
+    }
+    
+    /* Status badges */
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .status-online {
+        background: #1a1a1a;
+        color: #ffffff;
+        border: 1px solid #ffffff;
+    }
+    
+    .status-offline {
+        background: #1a1a1a;
+        color: #666666;
+        border: 1px solid #2a2a2a;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Fonctions API
+# API Functions
 def get_api_health() -> Dict:
-    """Vérifie la santé de l'API"""
+    """Check API health"""
     try:
         response = requests.get(f"{API_URL}/health", timeout=5)
         return response.json()
-    except:
-        return {"status": "unhealthy"}
+    except Exception as e:
+        return {"status": "unhealthy", "error": str(e)}
 
 def get_documents() -> List[Dict]:
-    """Récupère tous les documents"""
+    """Retrieve all documents"""
     try:
         response = requests.get(f"{API_URL}/documents", timeout=10)
         response.raise_for_status()
         return response.json().get('documents', [])
-    except:
+    except Exception as e:
+        st.error(f"Failed to fetch documents: {str(e)}")
         return []
 
 def get_qdrant_collections() -> List[Dict]:
-    """Récupère les collections Qdrant"""
+    """Retrieve Qdrant collections"""
     try:
         response = requests.get(f"{QDRANT_URL}/collections", timeout=5)
         response.raise_for_status()
         collections = response.json().get('result', {}).get('collections', [])
         
-        # Récupérer les détails de chaque collection
         detailed_collections = []
         for col in collections:
             try:
@@ -99,11 +288,12 @@ def get_qdrant_collections() -> List[Dict]:
                 pass
         
         return detailed_collections
-    except:
+    except Exception as e:
+        st.error(f"Failed to fetch collections: {str(e)}")
         return []
 
 def upload_document(file, collection_id: str, metadata: Dict) -> Dict:
-    """Upload un document"""
+    """Upload a document"""
     try:
         files = {'file': file}
         data = {
@@ -116,355 +306,244 @@ def upload_document(file, collection_id: str, metadata: Dict) -> Dict:
     except Exception as e:
         return {"error": str(e)}
 
-# Header
-st.markdown('<div class="main-header">⚙️ OpenRAG - Panneau d\'Administration</div>', unsafe_allow_html=True)
+def delete_document(doc_id: str) -> bool:
+    """Delete a document"""
+    try:
+        response = requests.delete(f"{API_URL}/documents/{doc_id}", timeout=10)
+        response.raise_for_status()
+        return True
+    except:
+        return False
 
-# Sidebar - Navigation
+# Header
+st.markdown('''
+<div class="app-header">
+    <h1 class="app-title">⚙️ OpenRAG Admin Dashboard</h1>
+    <p class="app-subtitle">System Management & Monitoring</p>
+</div>
+''', unsafe_allow_html=True)
+
+# Sidebar Navigation
 with st.sidebar:
-    st.header("Navigation")
+    st.markdown("### Navigation")
     page = st.radio(
-        "Section",
-        ["📊 Dashboard", "📁 Documents", "🗂️ Collections", "📤 Upload", "👥 Utilisateurs (TODO)", "🔧 Configuration"],
+        "Select Page",
+        ["📊 Dashboard", "📁 Documents", "🗂️ Collections", "📤 Upload"],
         label_visibility="collapsed"
     )
     
     st.divider()
     
-    # Statut système
-    st.subheader("Statut Système")
+    # System Status
+    st.markdown("### System Status")
     health = get_api_health()
     
     if health.get('status') == 'healthy':
-        st.success("✅ API Online")
+        st.markdown('<span class="status-badge status-online">● API Online</span>', unsafe_allow_html=True)
     else:
-        st.error("❌ API Offline")
+        st.markdown('<span class="status-badge status-offline">● API Offline</span>', unsafe_allow_html=True)
     
-    st.caption("OpenRAG Admin v1.0.0")
+    st.divider()
+    st.caption(f"API: {API_URL}")
+    st.caption("OpenRAG Admin v1.1.0")
 
 # PAGE: Dashboard
 if page == "📊 Dashboard":
-    st.header("📊 Vue d'ensemble du système")
+    st.markdown("### System Overview")
     
-    # Métriques principales
-    col1, col2, col3, col4 = st.columns(4)
-    
+    # Fetch data
     docs = get_documents()
     collections = get_qdrant_collections()
     
-    wte_docs = [d for d in docs if any(x in d.get('filename', '').lower() for x in ['wte', 'cisco', 'contrat'])]
     processed_docs = [d for d in docs if d.get('status') == 'processed']
-    
+    processing_docs = [d for d in docs if d.get('status') == 'processing']
     total_vectors = sum([col.get('points_count', 0) for col in collections])
+    
+    # Stats cards
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         st.markdown(f"""
         <div class="stat-card">
-            <div class="stat-number">{len(docs)}</div>
-            <div class="stat-label">Documents Total</div>
+            <div class="stat-value">{len(docs)}</div>
+            <div class="stat-label">Total Documents</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
         st.markdown(f"""
         <div class="stat-card">
-            <div class="stat-number">{len(processed_docs)}</div>
-            <div class="stat-label">Traités</div>
+            <div class="stat-value">{len(processed_docs)}</div>
+            <div class="stat-label">Processed</div>
+            <div class="stat-change">{len(processing_docs) in processing</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col3:
         st.markdown(f"""
         <div class="stat-card">
-            <div class="stat-number">{total_vectors}</div>
-            <div class="stat-label">Vecteurs Indexés</div>
+            <div class="stat-value">{total_vectors}</div>
+            <div class="stat-label">Vectors Indexed</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col4:
         st.markdown(f"""
         <div class="stat-card">
-            <div class="stat-number">{len(collections)}</div>
+            <div class="stat-value">{len(collections)}</div>
             <div class="stat-label">Collections</div>
         </div>
         """, unsafe_allow_html=True)
     
     st.divider()
     
-    # Graphiques
-    col1, col2 = st.columns(2)
+    # Collections table
+    if collections:
+        st.markdown("### Collections")
+        collections_data = []
+        for col in collections:
+            collections_data.append({
+                "Name": col.get('name', 'N/A'),
+                "Vectors": col.get('points_count', 0),
+                "Dimensions": col.get('config', {}).get('params', {}).get('vectors', {}).get('size', 'N/A'),
+                "Status": col.get('status', 'N/A')
+            })
+        
+        df = pd.DataFrame(collections_data)
+        st.dataframe(df, use_container_width=True, hide_index=True)
     
-    with col1:
-        st.subheader("📈 Documents par statut")
-        if docs:
-            status_counts = {}
-            for doc in docs:
-                status = doc.get('status', 'unknown')
-                status_counts[status] = status_counts.get(status, 0) + 1
-            
-            df_status = pd.DataFrame(list(status_counts.items()), columns=['Statut', 'Nombre'])
-            st.bar_chart(df_status.set_index('Statut'))
-        else:
-            st.info("Aucun document")
-    
-    with col2:
-        st.subheader("💾 Collections Qdrant")
-        if collections:
-            df_collections = pd.DataFrame([
-                {
-                    'Collection': col.get('name', 'N/A'),
-                    'Vecteurs': col.get('points_count', 0),
-                    'Statut': col.get('status', 'unknown')
-                }
-                for col in collections
-            ])
-            st.dataframe(df_collections, use_container_width=True, hide_index=True)
-        else:
-            st.info("Aucune collection")
-    
-    # Documents récents
-    st.divider()
-    st.subheader("📄 Documents récents")
-    
+    # Recent documents
     if docs:
+        st.markdown("### Recent Documents")
         recent_docs = sorted(docs, key=lambda x: x.get('created_at', ''), reverse=True)[:10]
-        df_recent = pd.DataFrame([
-            {
-                'Fichier': doc.get('filename', 'N/A'),
-                'Statut': doc.get('status', 'unknown'),
-                'Taille': f"{doc.get('size', 0) / 1024:.1f} KB" if doc.get('size') else 'N/A',
-                'Date': doc.get('created_at', 'N/A')[:10] if doc.get('created_at') else 'N/A'
-            }
-            for doc in recent_docs
-        ])
-        st.dataframe(df_recent, use_container_width=True, hide_index=True)
-    else:
-        st.info("Aucun document")
+        docs_data = []
+        for doc in recent_docs:
+            docs_data.append({
+                "Filename": doc.get('filename', 'N/A'),
+                "Status": doc.get('status', 'N/A'),
+                "Collection": doc.get('collection_id', 'default'),
+                "Size": f"{doc.get('file_size', 0) / 1024:.1f} KB" if doc.get('file_size') else 'N/A',
+                "Created": doc.get('created_at', 'N/A')[:19] if doc.get('created_at') else 'N/A'
+            })
+        
+        df = pd.DataFrame(docs_data)
+        st.dataframe(df, use_container_width=True, hide_index=True)
 
 # PAGE: Documents
 elif page == "📁 Documents":
-    st.header("📁 Gestion des documents")
+    st.markdown("### Document Management")
     
-    # Filtres
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        search_term = st.text_input("🔍 Rechercher", placeholder="Nom de fichier...")
-    
-    with col2:
-        status_filter = st.selectbox("Statut", ["Tous", "processed", "pending", "failed", "uploaded"])
-    
-    with col3:
-        sort_by = st.selectbox("Trier par", ["Date (récent)", "Date (ancien)", "Nom", "Taille"])
-    
-    # Liste des documents
     docs = get_documents()
     
-    # Filtrage
-    if search_term:
-        docs = [d for d in docs if search_term.lower() in d.get('filename', '').lower()]
-    
-    if status_filter != "Tous":
-        docs = [d for d in docs if d.get('status') == status_filter]
-    
-    # Tri
-    if sort_by == "Date (récent)":
-        docs = sorted(docs, key=lambda x: x.get('created_at', ''), reverse=True)
-    elif sort_by == "Date (ancien)":
-        docs = sorted(docs, key=lambda x: x.get('created_at', ''))
-    elif sort_by == "Nom":
-        docs = sorted(docs, key=lambda x: x.get('filename', ''))
-    elif sort_by == "Taille":
-        docs = sorted(docs, key=lambda x: x.get('size', 0), reverse=True)
-    
-    st.info(f"📊 {len(docs)} document(s) affiché(s)")
-    
-    # Affichage des documents
-    if docs:
-        for doc in docs:
-            with st.expander(f"📄 {doc.get('filename', 'N/A')} - {doc.get('status', 'unknown')}"):
-                col1, col2, col3 = st.columns(3)
-                
-                with col1:
-                    st.write(f"**ID:** {doc.get('id', 'N/A')}")
-                    st.write(f"**Statut:** {doc.get('status', 'unknown')}")
-                
-                with col2:
-                    size_kb = doc.get('size', 0) / 1024 if doc.get('size') else 0
-                    st.write(f"**Taille:** {size_kb:.1f} KB")
-                    st.write(f"**Type:** {doc.get('file_type', 'N/A')}")
-                
-                with col3:
-                    st.write(f"**Créé:** {doc.get('created_at', 'N/A')[:19] if doc.get('created_at') else 'N/A'}")
-                    st.write(f"**Collection:** {doc.get('collection_id', 'N/A')}")
-                
-                if doc.get('metadata'):
-                    st.json(doc['metadata'])
+    if not docs:
+        st.info("No documents found. Upload some documents to get started.")
     else:
-        st.warning("Aucun document trouvé")
+        # Search
+        search = st.text_input("🔍 Search documents", placeholder="Search by filename...")
+        
+        # Filter
+        filtered_docs = docs
+        if search:
+            filtered_docs = [d for d in docs if search.lower() in d.get('filename', '').lower()]
+        
+        # Documents table
+        docs_data = []
+        for doc in filtered_docs:
+            docs_data.append({
+                "ID": doc.get('id', 'N/A')[:8],
+                "Filename": doc.get('filename', 'N/A'),
+                "Status": doc.get('status', 'N/A'),
+                "Collection": doc.get('collection_id', 'default'),
+                "Chunks": doc.get('chunks_count', 0),
+                "Size": f"{doc.get('file_size', 0) / 1024:.1f} KB" if doc.get('file_size') else 'N/A',
+                "Created": doc.get('created_at', 'N/A')[:19] if doc.get('created_at') else 'N/A'
+            })
+        
+        df = pd.DataFrame(docs_data)
+        st.dataframe(df, use_container_width=True, hide_index=True)
+        
+        st.caption(f"Showing {len(filtered_docs)} of {len(docs)} documents")
+        
+        # Delete document
+        with st.expander("🗑️ Delete Document"):
+            doc_id = st.text_input("Enter document ID to delete", placeholder="e.g., 12345678")
+            if st.button("Delete", type="primary"):
+                if doc_id:
+                    if delete_document(doc_id):
+                        st.success(f"✅ Document {doc_id} deleted successfully")
+                        st.rerun()
+                    else:
+                        st.error("❌ Failed to delete document")
 
 # PAGE: Collections
 elif page == "🗂️ Collections":
-    st.header("🗂️ Gestion des collections Qdrant")
+    st.markdown("### Vector Collections")
     
     collections = get_qdrant_collections()
     
-    if collections:
+    if not collections:
+        st.info("No collections found.")
+    else:
         for col in collections:
-            with st.container():
-                st.subheader(f"📦 {col.get('name', 'N/A')}")
-                
-                col1, col2, col3, col4 = st.columns(4)
+            with st.expander(f"📦 {col.get('name', 'Unknown')}"):
+                col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    st.metric("Vecteurs", col.get('points_count', 0))
-                
+                    st.metric("Vectors", col.get('points_count', 0))
                 with col2:
-                    st.metric("Dimension", col.get('config', {}).get('params', {}).get('vectors', {}).get('size', 'N/A'))
-                
+                    st.metric("Dimensions", col.get('config', {}).get('params', {}).get('vectors', {}).get('size', 'N/A'))
                 with col3:
-                    status = col.get('status', 'unknown')
-                    status_color = "🟢" if status == "green" else "🔴"
-                    st.metric("Statut", f"{status_color} {status}")
+                    st.metric("Status", col.get('status', 'N/A'))
                 
-                with col4:
-                    distance = col.get('config', {}).get('params', {}).get('vectors', {}).get('distance', 'N/A')
-                    st.metric("Distance", distance)
-                
-                with st.expander("Détails de la configuration"):
-                    st.json(col.get('config', {}))
-                
-                st.divider()
-    else:
-        st.warning("Aucune collection trouvée")
+                # Details
+                st.json(col.get('config', {}))
 
 # PAGE: Upload
 elif page == "📤 Upload":
-    st.header("📤 Upload de documents")
-    
-    st.info("💡 Formats supportés: PDF, TXT, DOCX, MD")
+    st.markdown("### Upload Documents")
     
     with st.form("upload_form"):
+        # File uploader
         uploaded_file = st.file_uploader(
-            "Choisir un fichier",
-            type=['pdf', 'txt', 'docx', 'md'],
-            help="Sélectionnez un document à indexer"
+            "Choose a file",
+            type=['pdf', 'docx', 'txt', 'md'],
+            help="Supported formats: PDF, DOCX, TXT, Markdown"
         )
         
+        # Collection
+        collection_id = st.text_input(
+            "Collection ID",
+            value="default",
+            help="Collection to store the document in"
+        )
+        
+        # Metadata
         col1, col2 = st.columns(2)
-        
         with col1:
-            collection_id = st.text_input(
-                "Collection ID",
-                value="default",
-                help="Nom de la collection Qdrant"
-            )
-        
+            category = st.text_input("Category (optional)", placeholder="e.g., technical")
         with col2:
-            category = st.selectbox(
-                "Catégorie",
-                ["documentation", "tutorial", "guide", "contract", "manual"]
-            )
+            source = st.text_input("Source (optional)", placeholder="e.g., documentation")
         
-        metadata_source = st.text_input("Source", value="WTE Orange")
-        metadata_author = st.text_input("Auteur (optionnel)")
-        
-        submit = st.form_submit_button("🚀 Uploader et indexer", use_container_width=True)
+        # Submit
+        submit = st.form_submit_button("📤 Upload Document", use_container_width=True)
         
         if submit and uploaded_file:
-            metadata = {
-                "source": metadata_source,
-                "category": category
-            }
-            if metadata_author:
-                metadata["author"] = metadata_author
+            metadata = {}
+            if category:
+                metadata['category'] = category
+            if source:
+                metadata['source'] = source
             
-            with st.spinner(f"📤 Upload de {uploaded_file.name} en cours..."):
+            with st.spinner("Uploading and processing document..."):
                 result = upload_document(uploaded_file, collection_id, metadata)
             
-            if "error" in result:
-                st.error(f"❌ Erreur: {result['error']}")
+            if 'error' in result:
+                st.error(f"❌ Upload failed: {result['error']}")
             else:
-                st.success(f"✅ Document uploadé avec succès!")
+                st.success(f"✅ Document uploaded successfully!")
                 st.json(result)
-
-# PAGE: Utilisateurs
-elif page == "👥 Utilisateurs (TODO)":
-    st.header("👥 Gestion des utilisateurs")
-    
-    st.info("🚧 Cette fonctionnalité sera implémentée prochainement")
-    
-    st.markdown("""
-    ### Fonctionnalités prévues:
-    
-    - Création et gestion des comptes utilisateurs
-    - Attribution des rôles et permissions
-    - Gestion des quotas d'utilisation
-    - Historique des requêtes par utilisateur
-    - Tableau de bord par utilisateur
-    - Authentification et sécurité
-    """)
-    
-    # Preview de la structure
-    st.subheader("Aperçu de la structure utilisateur")
-    
-    sample_users = pd.DataFrame([
-        {"ID": "user001", "Nom": "Jean Dupont", "Email": "jean.dupont@example.com", "Rôle": "admin", "Statut": "actif"},
-        {"ID": "user002", "Nom": "Marie Martin", "Email": "marie.martin@example.com", "Rôle": "user", "Statut": "actif"},
-        {"ID": "user003", "Nom": "Pierre Durand", "Email": "pierre.durand@example.com", "Rôle": "user", "Statut": "inactif"},
-    ])
-    
-    st.dataframe(sample_users, use_container_width=True, hide_index=True)
-
-# PAGE: Configuration
-elif page == "🔧 Configuration":
-    st.header("🔧 Configuration du système")
-    
-    tabs = st.tabs(["API", "LLM", "Embedding", "Qdrant", "Base de données"])
-    
-    with tabs[0]:
-        st.subheader("API Configuration")
-        health = get_api_health()
-        
-        st.json(health)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.text_input("API URL", value=API_URL, disabled=True)
-        with col2:
-            st.text_input("Version", value=health.get('version', 'N/A'), disabled=True)
-    
-    with tabs[1]:
-        st.subheader("LLM Configuration")
-        
-        st.text_input("Provider", value="ollama", help="ollama, openai, anthropic")
-        st.text_input("Model", value="llama3.1:8b")
-        st.slider("Temperature", 0.0, 1.0, 0.3, help="Créativité du modèle")
-        st.number_input("Max Tokens", value=4096, help="Longueur maximale de la réponse")
-    
-    with tabs[2]:
-        st.subheader("Embedding Configuration")
-        
-        st.text_input("Model", value="all-MiniLM-L6-v2", disabled=True)
-        st.number_input("Dimension", value=384, disabled=True)
-    
-    with tabs[3]:
-        st.subheader("Qdrant Configuration")
-        
-        st.text_input("Qdrant URL", value=QDRANT_URL, disabled=True)
-        
-        collections = get_qdrant_collections()
-        st.metric("Collections actives", len(collections))
-        
-        total_vectors = sum([col.get('points_count', 0) for col in collections])
-        st.metric("Vecteurs totaux", total_vectors)
-    
-    with tabs[4]:
-        st.subheader("PostgreSQL Configuration")
-        
-        st.text_input("Host", value="postgres", disabled=True)
-        st.text_input("Port", value="5432", disabled=True)
-        st.text_input("Database", value="openrag_db", disabled=True)
+                st.info("The document is being processed. Check the Dashboard for status.")
 
 # Footer
 st.divider()
-st.caption("OpenRAG Administration Panel v1.0.0")
+st.caption("Powered by OpenRAG - Retrieval-Augmented Generation System")

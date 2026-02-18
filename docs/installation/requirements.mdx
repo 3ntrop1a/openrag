@@ -192,12 +192,7 @@ jq --version
 **Usefulness:**
 - `curl`: Test REST API (HTTP requests)
 - `jq`: Parse and format JSON responses
-  </Accordion>
-  
-  <Accordion title="HTTPie - Alternative moderne à cURL">
-    ```bash
-    pip install httpie
-    ```
+
 ## Network Ports Used
 
 OpenRAG uses **10 services** with the following ports:
@@ -294,9 +289,16 @@ sudo kill -9 <PID>
 With GPU: LLM responds in **1-3 seconds**  
 Without GPU: LLM responds in **5-15 seconds** (after first load 50-75s)
 </Tip>
-  
-  <Tab title="Apple Silicon (M1/M2/M3)">
-    Ollama supporte l'accélération Metal sur Apple Silicon.
+
+### Apple Silicon (M1/M2/M3)
+
+Ollama supports Metal acceleration on Apple Silicon. Performance is better than CPU-only but typically not as fast as NVIDIA GPUs.
+
+**Configuration:**
+- No special setup required
+- Docker Desktop for Mac handles acceleration
+- Performance: ~2-5 seconds per query
+
 ## Quick Requirements Verification
 
 Before installing OpenRAG, run these commands to verify your system:

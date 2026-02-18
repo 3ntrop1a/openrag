@@ -1,73 +1,246 @@
 """
-Interface utilisateur OpenRAG - Chat avec la base documentaire
+OpenRAG User Interface - Chat with Document Database
 """
 
 import streamlit as st
 import requests
 import json
+import os
 from datetime import datetime
 from typing import List, Dict
 
-# Configuration
-API_URL = "http://localhost:8000"
+# Configuration - use environment variable or fallback to Docker service name
+API_URL = os.getenv("API_URL", "http://api:8000")
 
-# Configuration de la page
+# Page configuration
 st.set_page_config(
-    page_title="OpenRAG - Assistant Documentation",
-    page_icon="📚",
+    page_title="OpenRAG - AI Document Assistant",
+    page_icon="🤖",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# Styles CSS personnalisés
+# Modern black & white CSS - NextJS inspired
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #1f77b4;
-        text-align: center;
+    /* Global styles */
+    .stApp {
+        background-color: #000000;
+        color: #ffffff;
+    }
+    
+    /* Hide default Streamlit elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Main container */
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        max-width: 1200px;
+    }
+    
+    /* Header */
+    .app-header {
+        background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
+        padding: 2rem;
+        border-radius: 12px;
+        border: 1px solid #2a2a2a;
         margin-bottom: 2rem;
+        text-align: center;
     }
-    .chat-message {
-        padding: 1rem;
-        border-radius: 0.5rem;
-        margin-bottom: 1rem;
-        display: flex;
-        flex-direction: column;
+    
+    .app-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin: 0;
+        background: linear-gradient(135deg, #ffffff 0%, #999999 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
     }
-    .user-message {
-        background-color: #e3f2fd;
-        margin-left: 20%;
-    }
-    .assistant-message {
-        background-color: #f5f5f5;
-        margin-right: 20%;
-    }
-    .source-box {
-        background-color: #fff3cd;
-        padding: 0.5rem;
-        border-radius: 0.3rem;
+    
+    .app-subtitle {
+        font-size: 1rem;
+        color: #888888;
         margin-top: 0.5rem;
+    }
+    
+    /* Chat messages */
+    .chat-message {
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        border: 1px solid #2a2a2a;
+        animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .user-message {
+        background: #1a1a1a;
+        border-left: 3px solid #ffffff;
+        margin-left: 10%;
+    }
+    
+    .assistant-message {
+        background: #0a0a0a;
+        border-left: 3px solid #666666;
+        margin-right: 10%;
+    }
+    
+    .message-role {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #666666;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+    
+    .message-content {
+        color: #ffffff;
+        line-height: 1.6;
+        font-size: 1rem;
+    }
+    
+    .message-time {
+        font-size: 0.75rem;
+        color: #666666;
+        margin-top: 0.5rem;
+    }
+    
+    /* Sources */
+    .sources-container {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: #000000;
+        border: 1px solid #2a2a2a;
+        border-radius: 6px;
+    }
+    
+    .source-title {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #888888;
+        margin-bottom: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .source-item {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #1a1a1a;
+        color: #cccccc;
         font-size: 0.9rem;
     }
-    .metric-card {
-        background-color: #ffffff;
+    
+    .source-item:last-child {
+        border-bottom: none;
+    }
+    
+    .score-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        background: #1a1a1a;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        color: #ffffff;
+        margin-left: 0.5rem;
+    }
+    
+    /* Input area */
+    .stTextInput > div > div > input {
+        background-color: #1a1a1a;
+        color: #ffffff;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
         padding: 1rem;
-        border-radius: 0.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        font-size: 1rem;
+    }
+    
+    .stTextInput > div > div > input:focus {
+        border-color: #ffffff;
+        box-shadow: 0 0 0 1px #ffffff;
+    }
+    
+    /* Buttons */
+    .stButton > button {
+        background: #ffffff;
+        color: #000000;
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+        width: 100%;
+    }
+    
+    .stButton > button:hover {
+        background: #e0e0e0;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(255,255,255,0.1);
+    }
+    
+    /* Sidebar */
+    .css-1d391kg, .css-1v0mbdj {
+        background-color: #0a0a0a;
+    }
+    
+    .sidebar .sidebar-content {
+        background-color: #0a0a0a;
+    }
+    
+    /* Metrics */
+    .metric-container {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        padding: 1rem;
+        text-align: center;
+    }
+    
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #ffffff;
+    }
+    
+    .metric-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #666666;
+        margin-top: 0.25rem;
+    }
+    
+    /* Divider */
+    hr {
+        border-color: #2a2a2a;
+        margin: 2rem 0;
+    }
+    
+    /* Spinner */
+    .stSpinner > div {
+        border-top-color: #ffffff;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Initialisation du state
+# Initialize session state
 if 'messages' not in st.session_state:
     st.session_state.messages = []
 if 'collection_id' not in st.session_state:
     st.session_state.collection_id = "default"
 
 def query_api(question: str, collection_id: str, max_results: int = 5, use_llm: bool = True) -> Dict:
-    """Interroge l'API OpenRAG"""
+    """Query the OpenRAG API"""
     try:
         response = requests.post(
             f"{API_URL}/query",
@@ -82,11 +255,12 @@ def query_api(question: str, collection_id: str, max_results: int = 5, use_llm: 
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        st.error(f"Erreur de connexion à l'API: {str(e)}")
+        st.error(f"⚠️ API Connection Error: {str(e)}")
+        st.info(f"Attempting to connect to: {API_URL}")
         return None
 
 def get_documents() -> List[Dict]:
-    """Récupère la liste des documents"""
+    """Retrieve list of documents"""
     try:
         response = requests.get(f"{API_URL}/documents", timeout=10)
         response.raise_for_status()
@@ -95,140 +269,142 @@ def get_documents() -> List[Dict]:
         return []
 
 def format_source(source: Dict) -> str:
-    """Formate une source pour l'affichage"""
+    """Format a source for display"""
     score_percent = int(source.get('relevance_score', 0) * 100)
-    return f"📄 {source.get('filename', 'N/A')} (pertinence: {score_percent}%)"
+    filename = source.get('filename', 'Unknown')
+    return f"""
+    <div class="source-item">
+        {filename}
+        <span class="score-badge">{score_percent}%</span>
+    </div>
+    """
 
 # Header
-st.markdown('<div class="main-header">📚 OpenRAG - Assistant Documentation WTE/Cisco</div>', unsafe_allow_html=True)
+st.markdown('''
+<div class="app-header">
+    <h1 class="app-title">OpenRAG</h1>
+    <p class="app-subtitle">AI-Powered Document Assistant</p>
+</div>
+''', unsafe_allow_html=True)
 
 # Sidebar
 with st.sidebar:
-    st.header("⚙️ Configuration")
+    st.markdown("### ⚙️ Settings")
     
     # Collection selection
     st.session_state.collection_id = st.text_input(
         "Collection",
         value=st.session_state.collection_id,
-        help="Nom de la collection à interroger"
+        help="Collection to query"
     )
     
-    # Paramètres de recherche
+    # Search parameters
     max_results = st.slider(
-        "Nombre de résultats",
+        "Max Results",
         min_value=1,
         max_value=10,
         value=5,
-        help="Nombre maximum de documents à utiliser pour la réponse"
+        help="Maximum number of documents to retrieve"
     )
     
     use_llm = st.checkbox(
-        "Utiliser l'IA pour générer la réponse",
+        "Use AI for Response Generation",
         value=True,
-        help="Si désactivé, seules les sources seront affichées"
+        help="If disabled, only source documents will be shown"
     )
     
     st.divider()
     
-    # Statistiques
-    st.header("📊 Statistiques")
+    # Statistics
+    st.markdown("### 📊 Statistics")
     docs = get_documents()
     
     if docs:
-        wte_docs = [d for d in docs if any(x in d.get('filename', '').lower() for x in ['wte', 'cisco', 'contrat'])]
-        processed = [d for d in wte_docs if d.get('status') == 'processed']
+        processed = [d for d in docs if d.get('status') == 'processed']
         
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("Documents WTE", len(wte_docs))
+            st.markdown(f'''
+            <div class="metric-container">
+                <div class="metric-value">{len(docs)}</div>
+                <div class="metric-label">Total</div>
+            </div>
+            ''', unsafe_allow_html=True)
         with col2:
-            st.metric("Traités", len(processed))
+            st.markdown(f'''
+            <div class="metric-container">
+                <div class="metric-value">{len(processed)}</div>
+                <div class="metric-label">Processed</div>
+            </div>
+            ''', unsafe_allow_html=True)
     
     st.divider()
     
     # Actions
-    if st.button("🗑️ Effacer l'historique"):
+    if st.button("🗑️ Clear History"):
         st.session_state.messages = []
         st.rerun()
     
-    # Informations
-    st.caption("OpenRAG v1.0.0")
-    st.caption("Plateforme RAG pour documentation technique")
+    st.caption("OpenRAG v1.1.0")
 
-# Zone de chat principale
+# Chat container
 chat_container = st.container()
 
 with chat_container:
-    # Affichage de l'historique des messages
+    # Display message history
     for message in st.session_state.messages:
         if message['role'] == 'user':
             st.markdown(f"""
             <div class="chat-message user-message">
-                <strong>👤 Vous</strong>
-                <p>{message['content']}</p>
-                <small>{message['timestamp']}</small>
+                <div class="message-role">You</div>
+                <div class="message-content">{message['content']}</div>
+                <div class="message-time">{message['timestamp']}</div>
             </div>
             """, unsafe_allow_html=True)
         else:
+            sources_html = ""
+            if 'sources' in message and message['sources']:
+                sources_list = "".join([format_source(s) for s in message['sources'][:5]])
+                sources_html = f"""
+                <div class="sources-container">
+                    <div class="source-title">Sources</div>
+                    {sources_list}
+                </div>
+                """
+            
+            exec_time = ""
+            if 'execution_time' in message:
+                exec_time = f"⏱️ {message['execution_time']/1000:.1f}s"
+            
             st.markdown(f"""
             <div class="chat-message assistant-message">
-                <strong>🤖 Assistant</strong>
-                <p>{message['content']}</p>
+                <div class="message-role">Assistant</div>
+                <div class="message-content">{message['content']}</div>
+                {sources_html}
+                <div class="message-time">{exec_time} • {message['timestamp']}</div>
+            </div>
             """, unsafe_allow_html=True)
-            
-            # Affichage des sources
-            if 'sources' in message and message['sources']:
-                st.markdown('<div class="source-box">', unsafe_allow_html=True)
-                st.markdown("**Sources consultées:**")
-                for source in message['sources'][:5]:
-                    st.markdown(f"- {format_source(source)}")
-                st.markdown('</div>', unsafe_allow_html=True)
-            
-            if 'execution_time' in message:
-                st.caption(f"⏱️ Temps de réponse: {message['execution_time']/1000:.1f}s | {message['timestamp']}")
-            
-            st.markdown('</div>', unsafe_allow_html=True)
 
-# Zone de saisie
+# Input area
 st.divider()
 
-# Exemples de questions
-with st.expander("💡 Exemples de questions"):
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("""
-        **Configuration:**
-        - Comment configurer un standard automatique ?
-        - Comment créer des groupements d'utilisateurs ?
-        - Comment gérer les files d'attente ?
-        - Comment intégrer MS Teams avec Webex ?
-        """)
-    with col2:
-        st.markdown("""
-        **Matériel:**
-        - Quels sont les postes Cisco disponibles ?
-        - Comment configurer le poste Cisco 6871 ?
-        - Comment utiliser le téléphone de conférence 8832 ?
-        - Comment configurer la messagerie vocale ?
-        """)
-
-# Formulaire de question
+# Question form
 with st.form(key='question_form', clear_on_submit=True):
     col1, col2 = st.columns([5, 1])
     
     with col1:
         question = st.text_input(
-            "Posez votre question:",
-            placeholder="Ex: Comment configurer un standard automatique dans WTE ?",
+            "Ask your question:",
+            placeholder="e.g., What are the main features of this system?",
             label_visibility="collapsed"
         )
     
     with col2:
-        submit = st.form_submit_button("🚀 Envoyer", use_container_width=True)
+        submit = st.form_submit_button("Send", use_container_width=True)
 
-# Traitement de la question
+# Process question
 if submit and question:
-    # Ajout de la question à l'historique
+    # Add question to history
     timestamp = datetime.now().strftime("%H:%M:%S")
     st.session_state.messages.append({
         'role': 'user',
@@ -236,16 +412,16 @@ if submit and question:
         'timestamp': timestamp
     })
     
-    # Affichage du spinner
-    with st.spinner('🔍 Recherche en cours...'):
+    # Display spinner
+    with st.spinner('🔍 Searching...'):
         result = query_api(question, st.session_state.collection_id, max_results, use_llm)
     
     if result:
-        # Ajout de la réponse à l'historique
+        # Add response to history
         if use_llm and result.get('answer'):
             answer_content = result['answer']
         else:
-            answer_content = "Voici les documents pertinents trouvés:"
+            answer_content = "Here are the relevant documents found:"
         
         st.session_state.messages.append({
             'role': 'assistant',
@@ -255,9 +431,9 @@ if submit and question:
             'timestamp': datetime.now().strftime("%H:%M:%S")
         })
         
-        # Rafraîchir l'affichage
+        # Refresh display
         st.rerun()
 
 # Footer
 st.divider()
-st.caption("Propulsé par OpenRAG - Système de Retrieval-Augmented Generation")
+st.caption("Powered by OpenRAG - Retrieval-Augmented Generation System")
