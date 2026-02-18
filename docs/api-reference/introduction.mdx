@@ -1,30 +1,30 @@
 ---
-title: 'Introduction API'
-description: "Introduction à l'API REST OpenRAG"
+title: 'API Introduction'
+description: "Introduction to the OpenRAG REST API"
 ---
 
 # API Reference
 
-Bienvenue dans la documentation de l'API OpenRAG. Cette API REST vous permet d'interagir avec le système RAG pour uploader des documents, poser des questions et gérer vos collections.
+Welcome to the OpenRAG API documentation. This REST API allows you to interact with the RAG system to upload documents, ask questions, and manage your collections.
 
-## URL de base
+## Base URL
 
 ```
 http://localhost:8000
 ```
 
-En production, remplacez par l'URL de votre serveur.
+In production, replace with your server's URL.
 
-## Authentification
+## Authentication
 
 <Warning>
-  La version actuelle ne nécessite pas d'authentification. 
-  L'authentification sera ajoutée dans une version future pour la production.
+  The current version does not require authentication. 
+  Authentication will be added in a future version for production.
 </Warning>
 
-## Format des réponses
+## Response Format
 
-Toutes les réponses de l'API sont au format JSON.
+All API responses are in JSON format.
 
 ```json
 {
@@ -33,15 +33,15 @@ Toutes les réponses de l'API sont au format JSON.
 }
 ```
 
-En cas d'erreur :
+In case of error:
 
 ```json
 {
-  "detail": "Message d'erreur descriptif"
+  "detail": "Descriptive error message"
 }
 ```
 
-## Headers recommandés
+## Recommended Headers
 
 ```http
 Content-Type: application/json
@@ -51,13 +51,13 @@ Accept: application/json
 ## Rate Limiting
 
 <Info>
-  Actuellement, aucune limite de taux n'est appliquée.
-  En production, une limite de 100 requêtes/minute par IP sera appliquée.
+  Currently, no rate limiting is applied.
+  In production, a limit of 100 requests/minute per IP will be enforced.
 </Info>
 
-## Endpoints disponibles
+## Available Endpoints
 
-### Requêtes (RAG)
+### Queries (RAG)
 
 <CardGroup cols={1}>
   <Card
@@ -65,11 +65,11 @@ Accept: application/json
     icon="message-question"
     href="/api-reference/query/process-query"
   >
-    Traiter une requête utilisateur et générer une réponse
+    Process a user query and generate a response
   </Card>
 </CardGroup>
 
-### Gestion des documents
+### Document Management
 
 <CardGroup cols={2}>
   <Card
@@ -77,28 +77,28 @@ Accept: application/json
     icon="file-upload"
     href="/api-reference/documents/upload"
   >
-    Upload un nouveau document
+    Upload a new document
   </Card>
   <Card
     title="GET /documents"
     icon="list"
     href="/api-reference/documents/list"
   >
-    Lister tous les documents
+    List all documents
   </Card>
   <Card
     title="GET /documents/{id}"
     icon="file"
     href="/api-reference/documents/get"
   >
-    Récupérer un document spécifique
+    Retrieve a specific document
   </Card>
   <Card
     title="DELETE /documents/{id}"
     icon="trash"
     href="/api-reference/documents/delete"
   >
-    Supprimer un document
+    Delete a document
   </Card>
 </CardGroup>
 
@@ -110,38 +110,38 @@ Accept: application/json
     icon="folder"
     href="/api-reference/collections/list"
   >
-    Lister toutes les collections
+    List all collections
   </Card>
 </CardGroup>
 
-### Système
+### System
 
 <CardGroup cols={2}>
   <Card
     title="GET /"
     icon="home"
   >
-    Informations sur l'API
+    API information
   </Card>
   <Card
     title="GET /health"
     icon="heart-pulse"
   >
-    Vérification de santé
+    Health check
   </Card>
 </CardGroup>
 
-## Codes HTTP
+## HTTP Codes
 
 | Code | Description |
 |------|-------------|
-| 200 | Succès |
-| 400 | Requête invalide |
-| 404 | Ressource non trouvée |
-| 500 | Erreur serveur |
+| 200 | Success |
+| 400 | Invalid request |
+| 404 | Resource not found |
+| 500 | Server error |
 | 504 | Timeout |
 
-## Exemples de clients
+## Client Examples
 
 ### Python
 
@@ -151,7 +151,7 @@ import requests
 # Configuration
 BASE_URL = "http://localhost:8000"
 
-# Upload un document
+# Upload a document
 with open("document.pdf", "rb") as f:
     response = requests.post(
         f"{BASE_URL}/documents/upload",
@@ -159,11 +159,11 @@ with open("document.pdf", "rb") as f:
     )
     print(response.json())
 
-# Poser une question
+# Ask a question
 response = requests.post(
     f"{BASE_URL}/query",
     json={
-        "query": "Quelle est la politique de remboursement ?",
+        "query": "What is the refund policy?",
         "max_results": 5
     }
 )
@@ -179,7 +179,7 @@ const fs = require('fs');
 
 const BASE_URL = 'http://localhost:8000';
 
-// Upload un document
+// Upload a document
 async function uploadDocument() {
   const form = new FormData();
   form.append('file', fs.createReadStream('document.pdf'));
@@ -193,12 +193,12 @@ async function uploadDocument() {
   console.log(response.data);
 }
 
-// Poser une question
+// Ask a question
 async function query() {
   const response = await axios.post(
     `${BASE_URL}/query`,
     {
-      query: 'Quelle est la politique de remboursement ?',
+      query: 'What is the refund policy?',
       max_results: 5
     }
   );
@@ -213,42 +213,42 @@ async function query() {
 # Health check
 curl http://localhost:8000/health
 
-# Upload un document
+# Upload a document
 curl -X POST http://localhost:8000/documents/upload \
   -F "file=@document.pdf"
 
-# Poser une question
+# Ask a question
 curl -X POST http://localhost:8000/query \
   -H "Content-Type: application/json" \
   -d '{
-    "query": "Quelle est la politique de remboursement ?",
+    "query": "What is the refund policy?",
     "max_results": 5
   }'
 
-# Lister les documents
+# List documents
 curl http://localhost:8000/documents
 ```
 
-## Documentation interactive
+## Interactive Documentation
 
-OpenRAG fournit une documentation interactive Swagger UI accessible à :
+OpenRAG provides interactive Swagger UI documentation accessible at:
 
 ```
 http://localhost:8000/docs
 ```
 
-Vous pouvez y tester directement tous les endpoints !
+You can directly test all endpoints there!
 
-## Webhooks (à venir)
+## Webhooks (coming soon)
 
-Les webhooks permettront de recevoir des notifications lors de :
-- Fin de traitement d'un document
-- Erreurs de traitement
-- Nouveaux documents ajoutés
+Webhooks will allow you to receive notifications when:
+- Document processing complete
+- Processing errors
+- New documents added
 
-## SDK (à venir)
+## SDK (coming soon)
 
-Des SDKs officiels seront bientôt disponibles pour :
+Official SDKs will soon be available for:
 - Python
 - JavaScript/TypeScript
 - Go
@@ -256,7 +256,7 @@ Des SDKs officiels seront bientôt disponibles pour :
 
 ## Support
 
-Pour toute question sur l'API :
-- 📚 Documentation : [docs.openrag.io](https://docs.openrag.io)
-- 💬 Discord : [discord.gg/openrag](https://discord.gg/openrag)
-- 🐛 Issues : [github.com/openrag/issues](https://github.com/openrag/issues)
+For any questions about the API:
+- 📚 Documentation: [docs.openrag.io](https://docs.openrag.io)
+- 💬 Discord: [discord.gg/openrag](https://discord.gg/openrag)
+- 🐛 Issues: [github.com/openrag/issues](https://github.com/openrag/issues)

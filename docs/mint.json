@@ -21,30 +21,21 @@
     }
   ],
   "topbarCtaButton": {
-    "name": "Interfaces Web",
+    "name": "Web Interfaces",
     "url": "http://localhost:8501"
   },
-  "tabs": [
-    {
-      "name": "API Reference",
-      "url": "api-reference"
-    },
-    {
-      "name": "Tests & Validation",
-      "url": "tests"
-    },
-    {
-      "name": "Composants",
-      "url": "components"
-    }
-  ],
   "navigation": [
     {
-      "group": "Démarrage",
+      "group": "Getting Started",
       "pages": [
         "introduction",
         "quickstart",
-        "architecture",
+        "architecture"
+      ]
+    },
+    {
+      "group": "Installation",
+      "pages": [
         "installation/requirements"
       ]
     },
@@ -65,7 +56,7 @@
       ]
     },
     {
-      "group": "Composants Techniques",
+      "group": "Components",
       "pages": [
         "components/postgresql",
         "components/qdrant",

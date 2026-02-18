@@ -1,102 +1,102 @@
 ---
-title: Introduction à OpenRAG
-description: 'Système RAG (Retrieval-Augmented Generation) complet et prêt pour la production'
+title: Introduction to OpenRAG
+description: 'Complete production-ready RAG (Retrieval-Augmented Generation) system'
 ---
 
-# Bienvenue dans OpenRAG 🚀
+# Welcome to OpenRAG 🚀
 
-OpenRAG est une solution RAG (Retrieval-Augmented Generation) complète, modulaire et prête pour la production. Elle permet d'interroger vos documents en utilisant des modèles de langage avancés avec un contexte précis et pertinent.
+OpenRAG is a complete, modular, and production-ready RAG (Retrieval-Augmented Generation) solution. It allows you to query your documents using advanced language models with precise and relevant context.
 
-## Qu'est-ce qu'un système RAG ?
+## What is a RAG system?
 
-Un système RAG combine la **recherche d'information** avec la **génération de texte** pour fournir des réponses précises basées sur vos propres documents :
+A RAG system combines **information retrieval** with **text generation** to provide accurate answers based on your own documents:
 
-1. **Retrieval (Recherche)** : Trouve les passages pertinents dans votre base documentaire
-2. **Augmented (Augmentation)** : Enrichit la requête avec le contexte trouvé
-3. **Generation (Génération)** : Génère une réponse cohérente avec un LLM
+1. **Retrieval**: Finds relevant passages in your document base
+2. **Augmented**: Enriches the query with the found context
+3. **Generation**: Generates a coherent response with an LLM
 
-### Workflow RAG
+### RAG Workflow
 
 ```mermaid
 graph LR
-    Q[Question] --> R[Recherche vectorielle]
-    R --> D[Documents pertinents]
-    D --> A[Augmentation contexte]
-    A --> G[Génération LLM]
-    G --> Answer[Réponse avec sources]
+    Q[Question] --> R[Vector Search]
+    R --> D[Relevant Documents]
+    D --> A[Context Augmentation]
+    A --> G[LLM Generation]
+    G --> Answer[Answer with Sources]
 ```
 
-## Fonctionnalités principales
+## Main Features
 
 <CardGroup cols={2}>
   <Card
-    title="Upload de documents"
+    title="Document Upload"
     icon="file-upload"
   >
-    PDF, DOCX, TXT, Markdown - Processing automatique
+    PDF, DOCX, TXT, Markdown - Automatic processing
   </Card>
   <Card
-    title="Recherche sémantique"
+    title="Semantic Search"
     icon="magnifying-glass"
   >
-    Recherche vectorielle avancée avec Qdrant
+    Advanced vector search with Qdrant
   </Card>
   <Card
-    title="Génération de réponses"
+    title="Answer Generation"
     icon="robot"
   >
     Ollama, OpenAI, Anthropic Claude
   </Card>
   <Card
-    title="Architecture modulaire"
+    title="Modular Architecture"
     icon="cubes"
     href="/architecture"
   >
-    Microservices découplés avec Docker
+    Decoupled microservices with Docker
   </Card>
 </CardGroup>
 
-## Composants principaux
+## Main Components
 
-OpenRAG est composé de **10 services Docker** :
+OpenRAG consists of **10 Docker services**:
 
-| Service | Port | Rôle |
+| Service | Port | Role |
 |---------|------|------|
-| **frontend-user** | 8501 | Interface chat utilisateur (Streamlit) |
-| **frontend-admin** | 8502 | Panel admin, upload, stats (Streamlit) |
-| **api** | 8000 | API REST (FastAPI) |
-| **orchestrator** | 8001 | Coordination workflows RAG |
-| **embedding** | 8002 | Génération embeddings (sentence-transformers) |
-| **ollama** | 11434 | Serveur LLM local |
-| **qdrant** | 6333 | Base vectorielle |
-| **postgres** | 5432 | Métadonnées et historique |
-| **redis** | 6379 | Cache et queues |
-| **minio** | 9000/9001 | Stockage fichiers (S3-compatible) |
+| **frontend-user** | 8501 | User chat interface (Streamlit) |
+| **frontend-admin** | 8502 | Admin panel, upload, stats (Streamlit) |
+| **api** | 8000 | REST API (FastAPI) |
+| **orchestrator** | 8001 | RAG workflow coordination |
+| **embedding** | 8002 | Embeddings generation (sentence-transformers) |
+| **ollama** | 11434 | Local LLM server |
+| **qdrant** | 6333 | Vector database |
+| **postgres** | 5432 | Metadata and history |
+| **redis** | 6379 | Cache and queues |
+| **minio** | 9000/9001 | File storage (S3-compatible) |
 
-## Cas d'usage
+## Use Cases
 
 <AccordionGroup>
-  <Accordion icon="building" title="Base de connaissances d'entreprise">
-    Créez un assistant IA qui connaît tous vos documents internes, procédures et politiques d'entreprise.
+  <Accordion icon="building" title="Enterprise Knowledge Base">
+    Create an AI assistant that knows all your internal documents, procedures, and company policies.
   </Accordion>
   
-  <Accordion icon="scale-balanced" title="Assistance juridique">
-    Interrogez rapidement des contrats, jurisprudences et documents légaux avec citations précises.
+  <Accordion icon="scale-balanced" title="Legal Assistance">
+    Quickly query contracts, case law, and legal documents with precise citations.
   </Accordion>
   
-  <Accordion icon="graduation-cap" title="Support client">
-    Répondez automatiquement aux questions basées sur votre documentation produit et FAQ.
+  <Accordion icon="graduation-cap" title="Customer Support">
+    Automatically answer questions based on your product documentation and FAQ.
   </Accordion>
   
-  <Accordion icon="book" title="Recherche académique">
-    Explorez et synthétisez de grandes collections de papiers de recherche scientifique.
+  <Accordion icon="book" title="Academic Research">
+    Explore and synthesize large collections of scientific research papers.
   </Accordion>
 </AccordionGroup>
 
-## Démarrage rapide
+## Quick Start
 
 <Steps>
-  <Step title="Cloner et lancer">
+  <Step title="Clone and Launch">
     ```bash
     git clone https://github.com/3ntrop1a/openrag.git
     cd openrag
@@ -104,89 +104,89 @@ OpenRAG est composé de **10 services Docker** :
     ```
   </Step>
   
-  <Step title="Télécharger le modèle LLM">
+  <Step title="Download LLM Model">
     ```bash
     docker exec -it openrag-ollama ollama pull llama3.1:8b
     ```
   </Step>
   
-  <Step title="Ouvrir l'interface chat">
-    Naviguez vers http://localhost:8501 et posez votre première question !
+  <Step title="Open Chat Interface">
+    Navigate to http://localhost:8501 and ask your first question!
   </Step>
 </Steps>
 
 <Info>
-**Première fois ?** Le démarrage initial prend 10-15 minutes (téléchargement images Docker + modèle LLM 4.9 GB)
+**First time?** Initial startup takes 10-15 minutes (downloading Docker images + 4.9 GB LLM model)
 </Info>
 
-## Prochaines étapes
+## Next Steps
 
 <CardGroup cols={2}>
   <Card
-    title="Guide de démarrage rapide"
+    title="Quick Start Guide"
     icon="rocket"
     href="/quickstart"
   >
-    Installation complète en 5 minutes
+    Complete installation in 5 minutes
   </Card>
   <Card
-    title="Architecture détaillée"
+    title="Detailed Architecture"
     icon="sitemap"
     href="/architecture"
   >
-    Comprendre le fonctionnement interne
+    Understand the internal workings
   </Card>
   <Card
-    title="Prérequis système"
+    title="System Requirements"
     icon="server"
     href="/installation/requirements"
   >
-    Configuration minimale: 16 GB RAM, GPU optionnel
+    Minimum configuration: 16 GB RAM, optional GPU
   </Card>
   <Card
     title="API Reference"
     icon="code"
     href="/api-reference/introduction"
   >
-    Documentation complète de l'API REST
+    Complete REST API documentation
   </Card>
 </CardGroup>
 
-## Caractéristiques techniques
+## Technical Characteristics
 
 <AccordionGroup>
   <Accordion icon="gauge-high" title="Performance">
-    - **Avec GPU:** 1-3s par requête
-    - **Sans GPU:** 5-15s par requête (après warm-up)
-    - **Recherche vectorielle:** 100-200ms
-    - **Indexation:** 10-30s par document PDF
+    - **With GPU:** 1-3s per query
+    - **Without GPU:** 5-15s per query (after warm-up)
+    - **Vector search:** 100-200ms
+    - **Indexing:** 10-30s per PDF document
   </Accordion>
 
-  <Accordion icon="database" title="Scalabilité">
-    - Architecture microservices horizontalement scalable
-    - Support de millions de documents
-    - Redis pour cache distribué
-    - PostgreSQL pour métadonnées
-    - Qdrant pour recherche vectorielle haute performance
+  <Accordion icon="database" title="Scalability">
+    - Horizontally scalable microservices architecture
+    - Support for millions of documents
+    - Redis for distributed cache
+    - PostgreSQL for metadata
+    - Qdrant for high-performance vector search
   </Accordion>
 
-  <Accordion icon="shield-halved" title="Sécurité">
-    - Données stockées localement (pas de cloud tiers)
-    - Isolation des services Docker
-    - Support des LLM locaux (Ollama) pour confidentialité totale
-    - Compatible avec LLM cloud (OpenAI, Claude) si souhaité
+  <Accordion icon="shield-halved" title="Security">
+    - Data stored locally (no third-party cloud)
+    - Docker service isolation
+    - Support for local LLMs (Ollama) for total privacy
+    - Compatible with cloud LLMs (OpenAI, Claude) if desired
   </Accordion>
 
-  <Accordion icon="puzzle-piece" title="Extensibilité">
-    - Intégration facile de nouveaux formats de documents
-    - Support multi-LLM (Ollama, OpenAI, Anthropic)
-    - API REST pour intégration dans vos applications
-    - Collection multiples pour segmentation des documents
+  <Accordion icon="puzzle-piece" title="Extensibility">
+    - Easy integration of new document formats
+    - Multi-LLM support (Ollama, OpenAI, Anthropic)
+    - REST API for integration into your applications
+    - Multiple collections for document segmentation
   </Accordion>
 </AccordionGroup>
 
-## Support et contributions
+## Support and Contributions
 
 - 🐛 **Issues:** [GitHub Issues](https://github.com/3ntrop1a/openrag/issues)
-- 💻 **Code source:** [github.com/3ntrop1a/openrag](https://github.com/3ntrop1a/openrag)
-- 📖 **Documentation:** Cette documentation Mintlify
+- 💻 **Source Code:** [github.com/3ntrop1a/openrag](https://github.com/3ntrop1a/openrag)
+- 📖 **Documentation:** This Mintlify documentation

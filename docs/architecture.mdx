@@ -1,18 +1,18 @@
 ---
 title: 'Architecture'
-description: 'Architecture détaillée du système OpenRAG'
+description: 'Detailed architecture of the OpenRAG system'
 ---
 
-# Architecture OpenRAG
+# OpenRAG Architecture
 
-OpenRAG implémente une architecture microservices modulaire et scalable basée sur le pattern RAG (Retrieval-Augmented Generation).
+OpenRAG implements a modular and scalable microservices architecture based on the RAG (Retrieval-Augmented Generation) pattern.
 
-## Vue d'ensemble
+## Overview
 
 ```mermaid
 graph TB
-    subgraph "Interface Utilisateur"
-        User[👤 Utilisateur]
+    subgraph "User Interface"
+        User[👤 User]
     end
     
     subgraph "API Layer"
@@ -20,7 +20,7 @@ graph TB
     end
     
     subgraph "Orchestration Layer"
-        Orch[Orchestrateur<br/>:8001]
+        Orch[Orchestrator<br/>:8001]
     end
     
     subgraph "Processing Layer"
@@ -52,42 +52,42 @@ graph TB
     Embed --> Redis
 ```
 
-## Composants principaux
+## Main Components
 
 ### 1. API Gateway (Port 8000)
 
-Point d'entrée REST pour toutes les interactions utilisateur.
+REST entry point for all user interactions.
 
-**Responsabilités :**
-- Authentification et autorisation (à venir)
-- Validation des requêtes
-- Routing vers l'orchestrateur
+**Responsibilities:**
+- Authentication and authorization (coming soon)
+- Request validation
+- Routing to orchestrator
 - Rate limiting
-- Documentation API (Swagger)
+- API documentation (Swagger)
 
-**Technologies :**
+**Technologies:**
 - FastAPI
 - Uvicorn (ASGI server)
 - Pydantic (validation)
 
-### 2. Orchestrateur (Port 8001)
+### 2. Orchestrator (Port 8001)
 
-Cœur du système qui coordonne le workflow RAG complet.
+System core that coordinates the complete RAG workflow.
 
-**Responsabilités :**
-- Coordination du pipeline d'ingestion de documents
-- Gestion du workflow de requêtes
-- Communication inter-services
-- Gestion des jobs asynchrones
-- Monitoring des processus
+**Responsibilities:**
+- Document ingestion pipeline coordination
+- Query workflow management
+- Inter-service communication
+- Asynchronous job management
+- Process monitoring
 
-**Workflow d'ingestion de document :**
+**Document ingestion workflow:**
 
 ```mermaid
 sequenceDiagram
     participant Client
     participant API
-    participant Orch as Orchestrateur
+    participant Orch as Orchestrator
     participant MinIO
     participant DB as PostgreSQL
     participant Embed as Embedding Service
@@ -111,13 +111,13 @@ sequenceDiagram
     API-->>Client: Success response
 ```
 
-**Workflow de requête RAG :**
+**RAG query workflow:**
 
 ```mermaid
 sequenceDiagram
     participant Client
     participant API
-    participant Orch as Orchestrateur
+    participant Orch as Orchestrator
     participant Embed as Embedding Service
     participant Qdrant
     participant DB as PostgreSQL
@@ -140,76 +140,76 @@ sequenceDiagram
 
 ### 3. Embedding Service (Port 8002)
 
-Service spécialisé pour la génération d'embeddings vectoriels.
+Specialized service for vector embeddings generation.
 
-**Responsabilités :**
-- Génération d'embeddings pour les textes
-- Support du traitement par batch
-- Optimisation des performances (GPU si disponible)
+**Responsibilities:**
+- Text embeddings generation
+- Batch processing support
+- Performance optimization (GPU if available)
 
-**Modèles supportés :**
-- `sentence-transformers/all-MiniLM-L6-v2` (défaut, 384 dimensions)
-- `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (multilingue)
-- `sentence-transformers/all-mpnet-base-v2` (meilleur qualité)
-- Modèles personnalisés compatibles sentence-transformers
+**Supported models:**
+- `sentence-transformers/all-MiniLM-L6-v2` (default, 384 dimensions)
+- `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (multilingual)
+- `sentence-transformers/all-mpnet-base-v2` (better quality)
+- Custom sentence-transformers compatible models
 
-**Configuration :**
+**Configuration:**
 ```env
 EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
-EMBEDDING_DEVICE=cpu  # ou cuda
+EMBEDDING_DEVICE=cpu  # or cuda
 EMBEDDING_BATCH_SIZE=32
 ```
 
 ### 4. MinIO (Ports 9000, 9001)
 
-Stockage d'objets S3-compatible pour les documents originaux.
+S3-compatible object storage for original documents.
 
-**Responsabilités :**
-- Stockage persistant des fichiers uploadés
-- Versioning des documents
-- Gestion des buckets
+**Responsibilities:**
+- Persistent storage of uploaded files
+- Document versioning
+- Bucket management
 
-**Structure de stockage :**
+**Storage structure:**
 ```
 documents/
 ├── {document_id_1}/
 │   └── filename.pdf
 ├── {document_id_2}/
-│   └── rapport.docx
+│   └── report.docx
 └── ...
 ```
 
-**Accès :**
-- API S3 : `http://localhost:9000`
-- Console Web : `http://localhost:9001`
+**Access:**
+- S3 API: `http://localhost:9000`
+- Web Console: `http://localhost:9001`
 
 ### 5. Qdrant (Ports 6333, 6334)
 
-Base de données vectorielle pour la recherche sémantique.
+Vector database for semantic search.
 
-**Responsabilités :**
-- Indexation des vecteurs d'embeddings
-- Recherche de similarité (HNSW algorithm)
-- Filtrage par métadonnées
-- Clustering et optimisation
+**Responsibilities:**
+- Embedding vector indexing
+- Similarity search (HNSW algorithm)
+- Metadata filtering
+- Clustering and optimization
 
-**Collections :**
-- `documents_embeddings` : Collection par défaut
-- Collections personnalisées par cas d'usage
+**Collections:**
+- `documents_embeddings`: Default collection
+- Custom collections per use case
 
-**Configuration :**
+**Configuration:**
 ```yaml
 vectors:
-  size: 384  # selon le modèle d'embedding
-  distance: Cosine  # ou Dot, Euclidean
+  size: 384  # according to embedding model
+  distance: Cosine  # or Dot, Euclidean
 ```
 
-**Payload structure :**
+**Payload structure:**
 ```json
 {
   "document_id": "uuid",
   "chunk_index": 0,
-  "content": "texte du chunk",
+  "content": "chunk text",
   "metadata": {
     "source_file": "document.pdf",
     "page": 1
@@ -219,9 +219,9 @@ vectors:
 
 ### 6. PostgreSQL (Port 5432)
 
-Base de données relationnelle pour les métadonnées.
+Relational database for metadata.
 
-**Schéma principal :**
+**Main schema:**
 
 <CodeGroup>
 
@@ -247,7 +247,7 @@ CREATE TABLE document_chunks (
     document_id UUID REFERENCES documents(id),
     chunk_index INTEGER,
     content TEXT,
-    vector_id VARCHAR(255),  -- ID dans Qdrant
+    vector_id VARCHAR(255),  -- ID in Qdrant
     metadata JSONB,
     created_at TIMESTAMP
 );
@@ -280,31 +280,31 @@ CREATE TABLE collections (
 
 ### 7. Ollama (Port 11434)
 
-Serveur LLM local pour la génération de réponses.
+Local LLM server for response generation.
 
-**Responsabilités :**
-- Exécution des modèles de langage
-- Génération de réponses contextualisées
-- Gestion du cache de modèles
+**Responsibilities:**
+- Language model execution
+- Contextualized response generation
+- Model cache management
 
-**Modèles recommandés :**
+**Recommended models:**
 
 <CardGroup cols={2}>
   <Card title="Llama 3.1 8B" icon="llama">
-    Meilleur rapport qualité/performance
+    Best quality/performance ratio
   </Card>
   <Card title="Phi-3 Mini" icon="microsoft">
-    Modèle léger et rapide
+    Lightweight and fast model
   </Card>
   <Card title="Gemma 7B" icon="google">
-    Excellent pour les tâches analytiques
+    Excellent for analytical tasks
   </Card>
   <Card title="Mistral 7B" icon="robot">
-    Très bon en français
+    Very good in French
   </Card>
 </CardGroup>
 
-**Alternative avec API Cloud :**
+**Alternative with Cloud API:**
 ```env
 LLM_PROVIDER=openai
 LLM_MODEL=gpt-4-turbo
@@ -313,41 +313,41 @@ OPENAI_API_KEY=sk-...
 
 ### 8. Redis (Port 6379)
 
-Cache distribué et file de messages.
+Distributed cache and message queue.
 
-**Usages :**
-- Cache des embeddings récents
-- File de tâches asynchrones (avec Celery)
+**Uses:**
+- Recent embeddings cache
+- Asynchronous task queue (with Celery)
 - Session management
 - Rate limiting
 
-## Flux de données
+## Data Flow
 
-### Ingestion de document
+### Document Ingestion
 
-1. **Upload** : Document envoyé via API
-2. **Stockage** : Sauvegarde dans MinIO
-3. **Extraction** : Extraction du texte selon le format
-4. **Chunking** : Découpage en morceaux de ~512 tokens
-5. **Embedding** : Génération de vecteurs pour chaque chunk
-6. **Indexation** : Stockage des vecteurs dans Qdrant
-7. **Métadonnées** : Enregistrement en PostgreSQL
+1. **Upload**: Document sent via API
+2. **Storage**: Saved in MinIO
+3. **Extraction**: Text extraction according to format
+4. **Chunking**: Split into ~512 token pieces
+5. **Embedding**: Vector generation for each chunk
+6. **Indexing**: Vector storage in Qdrant
+7. **Metadata**: Recording in PostgreSQL
 
-### Traitement de requête
+### Query Processing
 
-1. **Requête** : Question de l'utilisateur
-2. **Embedding** : Vectorisation de la requête
-3. **Recherche** : Top-K recherche dans Qdrant (cosine similarity)
-4. **Récupération** : Obtention des contenus des chunks
-5. **Contexte** : Assemblage du contexte pour le LLM
-6. **Génération** : LLM génère une réponse
-7. **Logging** : Enregistrement de la requête et réponse
+1. **Query**: User's question
+2. **Embedding**: Query vectorization
+3. **Search**: Top-K search in Qdrant (cosine similarity)
+4. **Retrieval**: Getting chunk contents
+5. **Context**: Context assembly for LLM
+6. **Generation**: LLM generates response
+7. **Logging**: Query and response recording
 
-## Scalabilité
+## Scalability
 
-### Scaling horizontal
+### Horizontal Scaling
 
-Chaque service peut être scalé indépendamment :
+Each service can be scaled independently:
 
 ```yaml
 docker-compose.yml:
@@ -356,100 +356,100 @@ docker-compose.yml:
       replicas: 3
 ```
 
-### Optimisations
+### Optimizations
 
 <AccordionGroup>
   <Accordion title="Embedding Service">
-    - Utiliser GPU pour les embeddings (10-50x plus rapide)
-    - Augmenter le batch size
-    - Cacher les embeddings fréquents dans Redis
+    - Use GPU for embeddings (10-50x faster)
+    - Increase batch size
+    - Cache frequent embeddings in Redis
   </Accordion>
   
   <Accordion title="Qdrant">
-    - Activer HNSW index optimization
-    - Sharding pour grandes collections (>10M vectors)
-    - Quantization pour réduire l'empreinte mémoire
+    - Enable HNSW index optimization
+    - Sharding for large collections (>10M vectors)
+    - Quantization to reduce memory footprint
   </Accordion>
   
   <Accordion title="Ollama">
-    - Utiliser plusieurs GPUs
-    - Activer le parallélisme de requêtes
-    - Optimiser les paramètres du modèle
+    - Use multiple GPUs
+    - Enable query parallelism
+    - Optimize model parameters
   </Accordion>
   
   <Accordion title="PostgreSQL">
-    - Indexer les colonnes fréquemment requêtées
-    - Partitioning pour grandes tables
+    - Index frequently queried columns
+    - Partitioning for large tables
     - Connection pooling (PgBouncer)
   </Accordion>
 </AccordionGroup>
 
-## Sécurité
+## Security
 
 <Warning>
-  Configuration de sécurité de base - À renforcer pour la production !
+  Basic security configuration - Strengthen for production!
 </Warning>
 
-### À implémenter pour la production
+### To implement for production
 
-- ✅ **Authentication** : JWT tokens, OAuth2
-- ✅ **Authorization** : RBAC (Role-Based Access Control)
-- ✅ **HTTPS/TLS** : Chiffrement des communications
-- ✅ **Secrets Management** : Vault, AWS Secrets Manager
-- ✅ **Network Policies** : Isolation des services
-- ✅ **Input Validation** : Protection contre les injections
-- ✅ **Rate Limiting** : Protection DDoS
-- ✅ **Audit Logging** : Traçabilité des opérations
+- ✅ **Authentication**: JWT tokens, OAuth2
+- ✅ **Authorization**: RBAC (Role-Based Access Control)
+- ✅ **HTTPS/TLS**: Communication encryption
+- ✅ **Secrets Management**: Vault, AWS Secrets Manager
+- ✅ **Network Policies**: Service isolation
+- ✅ **Input Validation**: Injection protection
+- ✅ **Rate Limiting**: DDoS protection
+- ✅ **Audit Logging**: Operation traceability
 
 ## Monitoring
 
-### Métriques importantes
+### Important Metrics
 
-- **API** : Requêtes/sec, latence, taux d'erreur
-- **Orchestrateur** : Jobs en cours, durée moyenne
-- **Qdrant** : Temps de recherche, taille des collections
-- **PostgreSQL** : Connexions, requêtes lentes
-- **Ollama** : Tokens/sec, utilisation GPU/CPU
+- **API**: Requests/sec, latency, error rate
+- **Orchestrator**: Jobs in progress, average duration
+- **Qdrant**: Search time, collection size
+- **PostgreSQL**: Connections, slow queries
+- **Ollama**: Tokens/sec, GPU/CPU usage
 
-### Stack de monitoring (optionnel)
+### Monitoring Stack (optional)
 
 ```bash
 docker-compose --profile monitoring up -d
 ```
 
-- **Prometheus** : Collecte de métriques
-- **Grafana** : Visualisation (dashboards pré-configurés)
-- **Loki** : Agrégation de logs
+- **Prometheus**: Metrics collection
+- **Grafana**: Visualization (pre-configured dashboards)
+- **Loki**: Log aggregation
 
-## Prochaines étapes
+## Next Steps
 
 <CardGroup cols={2}>
   <Card
-    title="Guide d'installation"
+    title="Installation Guide"
     icon="download"
     href="/installation/docker-setup"
   >
-    Installation complète étape par étape
+    Complete step-by-step installation
   </Card>
   <Card
     title="Configuration"
     icon="sliders"
     href="/installation/configuration"
   >
-    Paramétrage avancé des composants
+    Advanced component configuration
   </Card>
   <Card
-    title="Déploiement production"
+    title="Production Deployment"
     icon="server"
     href="/deployment/production"
   >
-    Best practices pour la production
+    Best practices for production
   </Card>
   <Card
     title="API Reference"
     icon="code"
     href="/api-reference"
   >
-    Documentation de l'API
+    API documentation
   </Card>
 </CardGroup>
