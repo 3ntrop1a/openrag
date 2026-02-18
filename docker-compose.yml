@@ -112,7 +112,7 @@ services:
       dockerfile: services/embedding/Dockerfile
     container_name: openrag-embedding
     environment:
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-mpnet-base-v2}
       - EMBEDDING_DEVICE=${EMBEDDING_DEVICE:-cpu}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -140,11 +140,16 @@ services:
       - REDIS_HOST=redis
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
+      - QDRANT_VECTOR_SIZE=${QDRANT_VECTOR_SIZE:-768}
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ROOT_USER=${MINIO_ROOT_USER:-admin}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-admin123456}
       - OLLAMA_HOST=http://ollama:11434
       - LLM_MODEL=${LLM_MODEL:-llama3.1:8b}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-mpnet-base-v2}
+      - EMBEDDING_SERVICE_URL=http://embedding-service:8002
+      - CHUNK_SIZE=${CHUNK_SIZE:-2000}
+      - CHUNK_OVERLAP=${CHUNK_OVERLAP:-200}
     volumes:
       - ./backend/services/orchestrator:/app
     depends_on:

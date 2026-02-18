@@ -230,7 +230,41 @@ st.markdown("""
     .stSpinner > div {
         border-top-color: #ffffff;
     }
+    
+    /* Input container styling */
+    .input-container {
+        position: sticky;
+        top: 0;
+        background: #000000;
+        padding: 1rem 0;
+        z-index: 100;
+        border-bottom: 1px solid #2a2a2a;
+        margin-bottom: 1rem;
+    }
+    
+    /* Chat container */
+    .chat-history {
+        max-height: 600px;
+        overflow-y: auto;
+        padding: 1rem 0;
+    }
+    
+    /* Info box */
+    .stAlert {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-left: 3px solid #ffffff;
+        color: #ffffff;
+    }
 </style>
+
+<script>
+    // Auto-scroll to bottom of chat
+    function scrollToBottom() {
+        window.scrollTo(0, document.body.scrollHeight);
+    }
+    setTimeout(scrollToBottom, 100);
+</script>
 """, unsafe_allow_html=True)
 
 # Initialize session state
@@ -239,7 +273,7 @@ if 'messages' not in st.session_state:
 if 'collection_id' not in st.session_state:
     st.session_state.collection_id = "default"
 
-def query_api(question: str, collection_id: str, max_results: int = 5, use_llm: bool = True) -> Dict:
+def query_api(question: str, collection_id: str, max_results: int = 15, use_llm: bool = True) -> Dict:
     """Query the OpenRAG API"""
     try:
         response = requests.post(
@@ -302,8 +336,8 @@ with st.sidebar:
     max_results = st.slider(
         "Max Results",
         min_value=1,
-        max_value=10,
-        value=5,
+        max_value=20,
+        value=15,
         help="Maximum number of documents to retrieve"
     )
     
@@ -347,79 +381,43 @@ with st.sidebar:
     
     st.caption("OpenRAG v1.1.0")
 
-# Chat container
-chat_container = st.container()
+# Question input form (at top for better UX)
+question_input = st.text_input(
+    "💬 Ask your question:",
+    placeholder="e.g., What are the main features of this system?",
+    key="question_input"
+)
 
-with chat_container:
-    # Display message history
-    for message in st.session_state.messages:
-        if message['role'] == 'user':
-            st.markdown(f"""
-            <div class="chat-message user-message">
-                <div class="message-role">You</div>
-                <div class="message-content">{message['content']}</div>
-                <div class="message-time">{message['timestamp']}</div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            sources_html = ""
-            if 'sources' in message and message['sources']:
-                sources_list = "".join([format_source(s) for s in message['sources'][:5]])
-                sources_html = f"""
-                <div class="sources-container">
-                    <div class="source-title">Sources</div>
-                    {sources_list}
-                </div>
-                """
-            
-            exec_time = ""
-            if 'execution_time' in message:
-                exec_time = f"⏱️ {message['execution_time']/1000:.1f}s"
-            
-            st.markdown(f"""
-            <div class="chat-message assistant-message">
-                <div class="message-role">Assistant</div>
-                <div class="message-content">{message['content']}</div>
-                {sources_html}
-                <div class="message-time">{exec_time} • {message['timestamp']}</div>
-            </div>
-            """, unsafe_allow_html=True)
+col1, col2 = st.columns([1, 5])
+with col1:
+    send_button = st.button("🚀 Send", use_container_width=True, type="primary")
+with col2:
+    if st.session_state.messages:
+        st.caption(f"💬 {len(st.session_state.messages)//2} messages in conversation")
 
-# Input area
 st.divider()
 
-# Question form
-with st.form(key='question_form', clear_on_submit=True):
-    col1, col2 = st.columns([5, 1])
-    
-    with col1:
-        question = st.text_input(
-            "Ask your question:",
-            placeholder="e.g., What are the main features of this system?",
-            label_visibility="collapsed"
-        )
-    
-    with col2:
-        submit = st.form_submit_button("Send", use_container_width=True)
-
-# Process question
-if submit and question:
+# Process question BEFORE displaying chat
+if send_button and question_input:
     # Add question to history
     timestamp = datetime.now().strftime("%H:%M:%S")
     st.session_state.messages.append({
         'role': 'user',
-        'content': question,
+        'content': question_input,
         'timestamp': timestamp
     })
     
-    # Display spinner
-    with st.spinner('🔍 Searching...'):
-        result = query_api(question, st.session_state.collection_id, max_results, use_llm)
+    # Display spinner and query API
+    with st.spinner('🔍 Searching through documents...'):
+        result = query_api(question_input, st.session_state.collection_id, max_results, use_llm)
     
     if result:
         # Add response to history
         if use_llm and result.get('answer'):
             answer_content = result['answer']
+        elif use_llm:
+            # LLM was requested but no answer generated
+            answer_content = "⚠️ The AI model did not generate a response. This may be due to timeout or processing issues. Here are the relevant documents:"  
         else:
             answer_content = "Here are the relevant documents found:"
         
@@ -430,9 +428,50 @@ if submit and question:
             'execution_time': result.get('execution_time_ms', 0),
             'timestamp': datetime.now().strftime("%H:%M:%S")
         })
-        
-        # Refresh display
-        st.rerun()
+    
+    # Rerun to refresh and clear input
+    st.rerun()
+
+# Chat history container
+chat_container = st.container()
+
+with chat_container:
+    # Display all message history
+    if not st.session_state.messages:
+        st.info("👋 Welcome! Ask me anything about your documents.")
+    else:
+        for idx, message in enumerate(st.session_state.messages):
+            if message['role'] == 'user':
+                st.markdown(f"""
+                <div class="chat-message user-message">
+                    <div class="message-role">You</div>
+                    <div class="message-content">{message['content']}</div>
+                    <div class="message-time">{message['timestamp']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                sources_html = ""
+                if 'sources' in message and message['sources']:
+                    sources_list = "".join([format_source(s) for s in message['sources'][:5]])
+                    sources_html = f"""
+                    <div class="sources-container">
+                        <div class="source-title">Sources</div>
+                        {sources_list}
+                    </div>
+                    """
+                
+                exec_time = ""
+                if 'execution_time' in message:
+                    exec_time = f"⏱️ {message['execution_time']/1000:.1f}s"
+                
+                st.markdown(f"""
+                <div class="chat-message assistant-message">
+                    <div class="message-role">Assistant</div>
+                    <div class="message-content">{message['content']}</div>
+                    {sources_html}
+                    <div class="message-time">{exec_time} • {message['timestamp']}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
 # Footer
 st.divider()

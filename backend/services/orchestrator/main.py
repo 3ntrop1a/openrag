@@ -41,7 +41,7 @@ class ProcessQueryRequest(BaseModel):
     query_id: str
     query: str
     collection_id: Optional[str] = None
-    max_results: int = 5
+    max_results: int = 15
     use_llm: bool = True
     metadata_filter: Optional[Dict[str, Any]] = None
 
@@ -107,7 +107,7 @@ async def process_query(request: ProcessQueryRequest):
             query=request.query,
             collection_name=request.collection_id or "documents_embeddings",
             limit=request.max_results or 5,  # Par défaut 5 résultats
-            score_threshold=0.25  # Seuil abaissé pour meilleure couverture
+            score_threshold=0.0  # Pas de seuil - pour debug
         )
         
         if not search_results:
@@ -146,9 +146,14 @@ async def process_query(request: ProcessQueryRequest):
         answer = None
         if request.use_llm and contexts:
             logger.info("Step 3: Generating LLM response")
+            # Include filename in context for better LLM understanding
+            contexts_with_source = [
+                f"[Source: {ctx['metadata'].get('source_file', 'document inconnu')}]\n{ctx['content']}" 
+                for ctx in contexts
+            ]
             answer = await llm_service.generate_answer(
                 query=request.query,
-                contexts=[ctx["content"] for ctx in contexts]
+                contexts=contexts_with_source
             )
         
         # 4. Enregistrer la requête dans la base
