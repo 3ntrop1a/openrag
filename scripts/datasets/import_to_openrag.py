@@ -83,12 +83,16 @@ def import_dataset_to_openrag(dataset_file: str, api_url: str = "http://localhos
             
             content = "\n".join(content_parts)
             
-            # Upload via API
+            # Upload via API Gateway
             files = {"file": (filename, content.encode("utf-8"), "text/plain")}
+            data = {
+                "collection_id": "astrophysics"
+            }
             
             response = requests.post(
-                f"{api_url}/upload",
+                f"{api_url}/documents/upload",
                 files=files,
+                data=data,
                 timeout=30
             )
             response.raise_for_status()
