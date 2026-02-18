@@ -73,7 +73,9 @@ Instructions :
     async def _generate_with_ollama(self, system_prompt: str, user_prompt: str) -> str:
         """Génère une réponse avec Ollama"""
         try:
-            async with httpx.AsyncClient(timeout=120.0) as client:
+            logger.info(f"Calling Ollama at {self.base_url} with model {self.model}")
+            async with httpx.AsyncClient(timeout=300.0) as client:  # Increased to 5 minutes
+                logger.info("Sending request to Ollama...")
                 response = await client.post(
                     f"{self.base_url}/api/generate",
                     json={
@@ -87,14 +89,18 @@ Instructions :
                     }
                 )
                 
+                logger.info(f"Received response from Ollama: status={response.status_code}")
+                
                 if response.status_code != 200:
                     raise Exception(f"Ollama API error: {response.text}")
                 
                 result = response.json()
-                return result["response"].strip()
+                answer = result.get("response", "").strip()
+                logger.info(f"Generated answer length: {len(answer)} characters")
+                return answer
                 
         except Exception as e:
-            logger.error(f"Error with Ollama: {e}")
+            logger.error(f"Error with Ollama: {type(e).__name__}: {str(e)}")
             raise
     
     async def _generate_with_openai(self, system_prompt: str, user_prompt: str) -> str:
