@@ -47,12 +47,9 @@
       ]
     },
     {
-      "group": "Tests & Validation",
+      "group": "Experiments & Research",
       "pages": [
-        "tests/overview",
-        "tests/installation-tests",
-        "tests/upload-tests",
-        "tests/query-tests"
+        "experiments/wte-corpus-analysis"
       ]
     },
     {
