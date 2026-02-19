@@ -205,8 +205,7 @@ services:
       - '--storage.tsdb.path=/prometheus'
     networks:
       - openrag-network
-    profiles:
-      - monitoring
+    restart: unless-stopped
 
   # Grafana
   grafana:
@@ -216,15 +215,13 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
     ports:
-      - "3000:3000"
+      - "3002:3000"
     depends_on:
       - prometheus
     networks:
       - openrag-network
-    profiles:
-      - monitoring
+    restart: unless-stopped
 
 volumes:
   postgres_data:

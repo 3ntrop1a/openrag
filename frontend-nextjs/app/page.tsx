@@ -74,9 +74,14 @@ export default function Home() {
     <div className="flex flex-col h-screen bg-background">
       {/* Header */}
       <header className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold">OpenRAG</h1>
-          <p className="text-sm text-muted-foreground">Assistant de recherche documentaire</p>
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">OpenRAG</h1>
+            <p className="text-sm text-muted-foreground">Assistant de recherche documentaire</p>
+          </div>
+          <a href="/admin" className="text-xs text-muted-foreground hover:text-white transition-colors border border-zinc-700 hover:border-zinc-500 px-3 py-1.5 rounded-md">
+            Admin
+          </a>
         </div>
       </header>
 
