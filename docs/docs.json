@@ -2,6 +2,7 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "OpenRAG",
+  "basePath": "/openrag",
   "logo": {
     "dark": "/logo_blanc.png",
     "light": "/logo_noir.png"
@@ -22,7 +23,7 @@
     "primary": {
       "type": "button",
       "label": "Web Interface",
-      "href": "https://github.com/3ntrop1a/openrag"
+      "href": "http://localhost:3000"
     }
   },
   "navigation": {
@@ -63,6 +64,15 @@
           "components/postgresql",
           "components/qdrant",
           "components/ollama"
+        ]
+      },
+      {
+        "group": "Tests",
+        "pages": [
+          "tests/overview",
+          "tests/installation-tests",
+          "tests/upload-tests",
+          "tests/query-tests"
         ]
       }
     ]
