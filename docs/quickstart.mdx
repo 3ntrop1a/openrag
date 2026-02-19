@@ -55,15 +55,14 @@ sudo docker-compose up -d
 sudo docker-compose ps
 ```
 
-You should see **10 services** with `Up` status:
+You should see **9 services** with `Up` status:
 
 ```
 NAME                       STATUS
 openrag-api                Up
 openrag-orchestrator       Up
-openrag-embedding          Up  
-openrag-frontend-user      Up  # NEW: User chat
-openrag-frontend-admin     Up  # NEW: Admin panel
+openrag-embedding          Up
+openrag-frontend-admin     Up
 openrag-postgres           Up
 openrag-redis              Up
 openrag-minio              Up
@@ -95,11 +94,11 @@ Open your browser and test the interfaces:
   <Card 
     title="User Chat" 
     icon="messages"
-    href="http://localhost:8501"
+    href="http://localhost:3001"
   >
-    **Main interface** - http://localhost:8501
+    **Main interface** - http://localhost:3001
     
-    Interactive chat with history and sources
+    Next.js + ShadcnUI chat with markdown rendering
   </Card>
   <Card 
     title="Admin Panel" 
@@ -136,7 +135,7 @@ Open your browser and test the interfaces:
 
 <Steps>
   <Step title="Open the user interface">
-    Navigate to http://localhost:8501
+    Navigate to http://localhost:3001
   </Step>
   
   <Step title="Ask a test question">

@@ -229,23 +229,6 @@ services:
   # ============================================
   # Frontend Services
   # ============================================
-  
-  # Frontend User - Interface utilisateur Streamlit
-  frontend-user:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: openrag-frontend-user
-    command: streamlit run app_user.py --server.port=8501 --server.address=0.0.0.0
-    environment:
-      - API_URL=http://api:8000
-    ports:
-      - "8501:8501"
-    depends_on:
-      - api
-    networks:
-      - openrag-network
-    restart: unless-stopped
 
   # Frontend Admin - Interface administration Streamlit
   frontend-admin:

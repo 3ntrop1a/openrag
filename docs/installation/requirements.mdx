@@ -26,7 +26,7 @@ This configuration will allow the system to run but with limited performance. Th
     
     - LLM (llama3.1:8b): ~5.5 GB
     - Services (PostgreSQL, Redis, Qdrant, MinIO): ~2 GB
-    - Streamlit frontends: ~500 MB
+    - Frontend Next.js: ~150 MB
     - OS + buffers: ~8 GB
   </Card>
   <Card title="Storage" icon="hard-drive">
@@ -86,8 +86,7 @@ MinIO:                      200 MB
 API Gateway:                200 MB
 Orchestrator:               300 MB
 Embedding Service:          200 MB
-Frontend User:              250 MB
-Frontend Admin:             250 MB
+Frontend Admin (Streamlit): 250 MB
 OS (Debian/Ubuntu):       2-4 GB
 System Buffers:           4-6 GB
 -----------------------------------
@@ -201,7 +200,7 @@ OpenRAG uses **10 services** with the following ports:
 
 | Service | Port | URL | Description |
 |---------|------|-----|-------------|
-| **Chat Interface** | 8501 | http://localhost:8501 | Streamlit user interface |
+| **Chat Interface** | 3001 | http://localhost:3001 | Next.js user chat (run manually) |
 | **Admin Panel** | 8502 | http://localhost:8502 | Administration dashboard |
 | **REST API** | 8000 | http://localhost:8000 | API entry point |
 | **MinIO Console** | 9001 | http://localhost:9001 | Storage management (admin/admin123456) |
@@ -223,10 +222,10 @@ OpenRAG uses **10 services** with the following ports:
 
 ```bash
 # Linux/macOS
-sudo lsof -i :8501
+sudo lsof -i :3001
 
 # If port is in use, find the process
-sudo lsof -i :8501 | grep LISTEN
+sudo lsof -i :3001 | grep LISTEN
 
 # Kill the process if necessary
 sudo kill -9 <PID>
@@ -325,7 +324,7 @@ nvidia-smi  # If you have an NVIDIA GPU
 <Check>Docker **26.0+** installed</Check>
 <Check>Docker Compose **2.26+** installed</Check>
 <Check>User in `docker` group</Check>
-<Check>Ports **8000, 8501, 8502** available</Check>
+<Check>Ports **8000, 8502, 3001** available</Check>
 <Check>Stable internet connection (5 GB model download)</Check>
 
 ### Configuration per Use Case
