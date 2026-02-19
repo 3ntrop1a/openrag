@@ -1,8 +1,8 @@
 {
   "name": "OpenRAG",
   "logo": {
-    "dark": "logo_blanc.png",
-    "light": "logo_noir.png"
+    "dark": "/logo_blanc.png",
+    "light": "/logo_noir.png"
   },
   "favicon": "/favicon.svg",
   "colors": {
