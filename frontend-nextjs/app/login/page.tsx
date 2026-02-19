@@ -20,13 +20,12 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    await new Promise(r => setTimeout(r, 300)); // slight delay for UX
-    const ok = login(username, password);
+    const result = await login(username, password);
     setLoading(false);
-    if (ok) {
+    if (result.ok) {
       router.replace('/');
     } else {
-      setError('Invalid credentials. Please enter a non-empty username and password.');
+      setError(result.error || 'Login failed.');
     }
   };
 
@@ -79,7 +78,7 @@ export default function LoginPage() {
         </form>
 
         <p className="text-xs text-center text-muted-foreground">
-          Use <strong>admin / admin</strong> for full access, or any other credentials for chatbot access.
+          Contact your administrator if you need access.
         </p>
       </Card>
     </div>

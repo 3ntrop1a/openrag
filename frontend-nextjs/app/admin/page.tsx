@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import {
   LayoutDashboard, FileText, Upload, Cpu,
   Trash2, CheckCircle2, XCircle, Loader2,
-  ArrowLeft, RefreshCw, Database
+  ArrowLeft, RefreshCw, Database, Users, Shield, Eye, EyeOff
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
@@ -16,7 +16,7 @@ import { useAuth } from '@/lib/auth';
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const OLLAMA = 'http://localhost:11434';
 
-type Tab = 'dashboard' | 'documents' | 'upload' | 'ollama';
+type Tab = 'dashboard' | 'documents' | 'upload' | 'ollama' | 'users';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -354,6 +354,221 @@ function UploadTab() {
   );
 }
 
+// ─── Users Tab ────────────────────────────────────────────────────────────────
+
+interface UserRecord {
+  id: string;
+  username: string;
+  role: 'admin' | 'user';
+  is_active: boolean;
+  created_at: string;
+}
+
+function UsersTab() {
+  const { auth } = useAuth();
+  const token = auth?.token ?? '';
+
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newRole, setNewRole] = useState<'user' | 'admin'>('user');
+  const [creating, setCreating] = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [changingPwd, setChangingPwd] = useState<string | null>(null);
+  const [newPwdFor, setNewPwdFor] = useState('');
+
+  const authHeader = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+  const load = async () => {
+    setLoading(true); setError('');
+    try {
+      const r = await fetch(`${API}/auth/users`, { headers: authHeader });
+      if (!r.ok) throw new Error(await r.text());
+      const data = await r.json();
+      setUsers(data.users ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load users');
+    } finally { setLoading(false); }
+  };
+
+  const createUser = async () => {
+    if (!newUsername || !newPassword) return;
+    setCreating(true); setError('');
+    try {
+      const r = await fetch(`${API}/auth/users`, {
+        method: 'POST',
+        headers: authHeader,
+        body: JSON.stringify({ username: newUsername, password: newPassword, role: newRole }),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.detail || 'Create failed');
+      }
+      setNewUsername(''); setNewPassword(''); setNewRole('user'); setShowForm(false);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Create failed');
+    } finally { setCreating(false); }
+  };
+
+  const deleteUser = async (id: string, username: string) => {
+    if (!confirm(`Delete user "${username}"?`)) return;
+    setDeleting(id);
+    try {
+      const r = await fetch(`${API}/auth/users/${id}`, { method: 'DELETE', headers: authHeader });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.detail || 'Delete failed');
+      }
+      setUsers(prev => prev.filter(u => u.id !== id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Delete failed');
+    } finally { setDeleting(null); }
+  };
+
+  const changePassword = async (id: string) => {
+    if (!newPwdFor || newPwdFor.length < 4) { setError('Password must be at least 4 characters'); return; }
+    try {
+      const r = await fetch(`${API}/auth/users/${id}/password`, {
+        method: 'PATCH', headers: authHeader,
+        body: JSON.stringify({ password: newPwdFor }),
+      });
+      if (!r.ok) throw new Error('Failed to update password');
+      setChangingPwd(null); setNewPwdFor('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Update failed');
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-zinc-400">{users.length} user{users.length !== 1 ? 's' : ''}</p>
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" onClick={load} disabled={loading} className="h-7 px-2 text-zinc-400 hover:text-white">
+            <RefreshCw className={`h-3 w-3 mr-1 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          </Button>
+          <Button size="sm" className="h-7 bg-white text-black hover:bg-zinc-200" onClick={() => setShowForm(v => !v)}>
+            {showForm ? 'Cancel' : '+ New user'}
+          </Button>
+        </div>
+      </div>
+
+      {error && <p className="text-sm text-red-400">{error}</p>}
+
+      {showForm && (
+        <Card className="p-4 bg-zinc-900 border-zinc-700 space-y-3">
+          <h3 className="text-sm font-semibold text-zinc-300">Create user</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              placeholder="Username" value={newUsername}
+              onChange={e => setNewUsername(e.target.value)}
+              className="bg-zinc-800 border-zinc-700 text-white"
+            />
+            <div className="relative">
+              <Input
+                placeholder="Password" type={showPwd ? 'text' : 'password'}
+                value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                className="bg-zinc-800 border-zinc-700 text-white pr-9"
+              />
+              <button
+                type="button" onClick={() => setShowPwd(v => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
+              >
+                {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <label className="text-xs text-zinc-400 flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="create-role" value="user" checked={newRole === 'user'}
+                onChange={() => setNewRole('user')} className="accent-white" />
+              User (chat only)
+            </label>
+            <label className="text-xs text-zinc-400 flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="create-role" value="admin" checked={newRole === 'admin'}
+                onChange={() => setNewRole('admin')} className="accent-white" />
+              Admin (full access)
+            </label>
+          </div>
+          <Button
+            size="sm" className="bg-white text-black hover:bg-zinc-200"
+            disabled={creating || !newUsername || !newPassword}
+            onClick={createUser}
+          >
+            {creating ? <Loader2 className="h-3 w-3 mr-2 animate-spin" /> : null}
+            Create
+          </Button>
+        </Card>
+      )}
+
+      {loading && users.length === 0 ? (
+        <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-zinc-400" /></div>
+      ) : (
+        <div className="space-y-2">
+          {users.map(u => (
+            <Card key={u.id} className="p-3 bg-zinc-900 border-zinc-800">
+              <div className="flex items-center gap-3">
+                {u.role === 'admin'
+                  ? <Shield className="h-4 w-4 text-amber-400 shrink-0" />
+                  : <Users className="h-4 w-4 text-zinc-500 shrink-0" />}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-white font-medium font-mono">{u.username}</p>
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                      u.role === 'admin' ? 'bg-amber-950 text-amber-400' : 'bg-zinc-800 text-zinc-400'
+                    }`}>{u.role}</span>
+                    {!u.is_active && <span className="text-xs text-red-400">inactive</span>}
+                  </div>
+                  <p className="text-xs text-zinc-600 mt-0.5">
+                    Created {new Date(u.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost" size="sm"
+                    className="h-7 text-xs text-zinc-500 hover:text-white px-2"
+                    onClick={() => { setChangingPwd(changingPwd === u.id ? null : u.id); setNewPwdFor(''); }}
+                  >
+                    Pwd
+                  </Button>
+                  <Button
+                    variant="ghost" size="sm"
+                    className="h-7 w-7 p-0 text-zinc-600 hover:text-red-400"
+                    onClick={() => deleteUser(u.id, u.username)}
+                    disabled={deleting === u.id || u.username === auth?.username}
+                  >
+                    {deleting === u.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                  </Button>
+                </div>
+              </div>
+              {changingPwd === u.id && (
+                <div className="mt-3 flex gap-2">
+                  <Input
+                    placeholder="New password" type="password" value={newPwdFor}
+                    onChange={e => setNewPwdFor(e.target.value)}
+                    className="h-7 text-xs bg-zinc-800 border-zinc-700 text-white flex-1"
+                  />
+                  <Button size="sm" className="h-7 text-xs bg-white text-black hover:bg-zinc-200"
+                    onClick={() => changePassword(u.id)} disabled={newPwdFor.length < 4}>
+                    Save
+                  </Button>
+                </div>
+              )}
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Ollama Tab ───────────────────────────────────────────────────────────────
 
 function OllamaTab() {
@@ -488,6 +703,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'documents', label: 'Documents', icon: <FileText className="h-4 w-4" /> },
   { id: 'upload', label: 'Upload', icon: <Upload className="h-4 w-4" /> },
   { id: 'ollama', label: 'Ollama', icon: <Cpu className="h-4 w-4" /> },
+  { id: 'users', label: 'Users', icon: <Users className="h-4 w-4" /> },
 ];
 
 export default function AdminPage() {
@@ -543,6 +759,7 @@ export default function AdminPage() {
         {tab === 'documents' && <DocumentsTab />}
         {tab === 'upload' && <UploadTab />}
         {tab === 'ollama' && <OllamaTab />}
+        {tab === 'users' && <UsersTab />}
       </main>
     </div>
   );
