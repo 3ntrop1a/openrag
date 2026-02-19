@@ -22,6 +22,7 @@ from passlib.context import CryptContext
 
 # ─── Configuration ─────────────────────────────────────────────────────────────
 ORCHESTRATOR_URL = os.getenv("ORCHESTRATOR_URL", "http://orchestrator:8001")
+QDRANT_URL       = os.getenv("QDRANT_URL", f"http://{os.getenv('QDRANT_HOST','qdrant')}:{os.getenv('QDRANT_PORT','6333')}")
 API_VERSION = "1.0.0"
 
 DATABASE_URL = os.getenv(
@@ -394,39 +395,6 @@ async def upload_document(
         logger.error(f"Document upload error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/documents", tags=["Documents"])
-async def list_documents(
-    collection_id: Optional[str] = None,
-    status: Optional[str] = None,
-    limit: int = 50,
-    offset: int = 0
-):
-    """Liste tous les documents"""
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            params = {
-                "collection_id": collection_id,
-                "status": status,
-                "limit": limit,
-                "offset": offset
-            }
-            response = await client.get(
-                f"{ORCHESTRATOR_URL}/documents",
-                params={k: v for k, v in params.items() if v is not None}
-            )
-            
-            if response.status_code != 200:
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail="Failed to fetch documents"
-                )
-            
-            return response.json()
-            
-    except Exception as e:
-        logger.error(f"List documents error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
 @app.get("/documents/{document_id}", tags=["Documents"])
 async def get_document(document_id: str):
     """Récupère les détails d'un document"""
@@ -475,22 +443,234 @@ async def delete_document(document_id: str):
 
 @app.get("/collections", tags=["Collections"])
 async def list_collections():
-    """Liste toutes les collections"""
+    """List all collections with Qdrant vector counts."""
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(f"{ORCHESTRATOR_URL}/collections")
-            
-            if response.status_code != 200:
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail="Failed to fetch collections"
-                )
-            
-            return response.json()
-            
+            # Get collections from orchestrator (Postgres)
+            pg_resp = await client.get(f"{ORCHESTRATOR_URL}/collections")
+            pg_cols = pg_resp.json().get("collections", []) if pg_resp.status_code == 200 else []
+
+            # Get Qdrant collection list + stats in parallel
+            qdrant_resp = await client.get(f"{QDRANT_URL}/collections")
+            qdrant_names = {c["name"] for c in qdrant_resp.json().get("result", {}).get("collections", [])} if qdrant_resp.status_code == 200 else set()
+
+            enriched = []
+            for col in pg_cols:
+                name = col.get("name", "")
+                qdrant_info = {}
+                if name in qdrant_names:
+                    try:
+                        qr = await client.get(f"{QDRANT_URL}/collections/{name}")
+                        r = qr.json().get("result", {})
+                        qdrant_info = {
+                            "vectors_count": r.get("points_count", 0),
+                            "indexed_vectors_count": r.get("indexed_vectors_count", 0),
+                            "segments_count": r.get("segments_count", 0),
+                            "status": r.get("status", "unknown"),
+                            "vector_size": r.get("config", {}).get("params", {}).get("vectors", {}).get("size"),
+                        }
+                    except Exception:
+                        pass
+                enriched.append({**col, **qdrant_info})
+
+            # Also include Qdrant-only collections
+            pg_names = {c.get("name") for c in pg_cols}
+            for qname in qdrant_names - pg_names:
+                try:
+                    qr = await client.get(f"{QDRANT_URL}/collections/{qname}")
+                    r = qr.json().get("result", {})
+                    enriched.append({
+                        "name": qname,
+                        "description": "(Qdrant only)",
+                        "vectors_count": r.get("points_count", 0),
+                        "indexed_vectors_count": r.get("indexed_vectors_count", 0),
+                        "segments_count": r.get("segments_count", 0),
+                        "status": r.get("status", "unknown"),
+                        "vector_size": r.get("config", {}).get("params", {}).get("vectors", {}).get("size"),
+                    })
+                except Exception:
+                    pass
+
+            return {"collections": enriched}
+
     except Exception as e:
         logger.error(f"List collections error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/stats", tags=["Admin"])
+async def get_stats(db=Depends(get_db)):
+    """Aggregate system statistics from Postgres + Qdrant + Prometheus."""
+    stats: dict = {}
+
+    # ─ Postgres stats ─────────────────────────────────────────────
+    try:
+        with db.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT
+                    (SELECT COUNT(*) FROM documents)                                   AS total_documents,
+                    (SELECT COUNT(*) FROM documents WHERE status = 'processed')        AS processed_documents,
+                    (SELECT COUNT(*) FROM documents WHERE status = 'processing')       AS processing_documents,
+                    (SELECT COUNT(*) FROM documents WHERE status = 'failed')           AS failed_documents,
+                    (SELECT COUNT(*) FROM document_chunks)                             AS total_chunks,
+                    (SELECT COUNT(*) FROM queries)                                     AS total_queries,
+                    (SELECT ROUND(AVG(execution_time_ms)) FROM queries
+                     WHERE execution_time_ms IS NOT NULL)                              AS avg_query_time_ms,
+                    (SELECT COUNT(*) FROM queries WHERE created_at > NOW() - INTERVAL '24 hours') AS queries_24h,
+                    (SELECT COUNT(*) FROM queries WHERE created_at > NOW() - INTERVAL '7 days')   AS queries_7d,
+                    (SELECT COUNT(*) FROM collections)                                 AS total_collections,
+                    (SELECT COUNT(*) FROM users)                                       AS total_users
+            """)
+            row = dict(cur.fetchone())
+            stats["database"] = {k: (int(v) if v is not None else 0) for k, v in row.items()}
+    except Exception as e:
+        stats["database"] = {"error": str(e)}
+
+    # ─ Qdrant stats ──────────────────────────────────────────────
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            qr = await client.get(f"{QDRANT_URL}/collections")
+            qdrant_collections = qr.json().get("result", {}).get("collections", [])
+            total_vectors = 0
+            col_details = []
+            for c in qdrant_collections:
+                dr = await client.get(f"{QDRANT_URL}/collections/{c['name']}")
+                r = dr.json().get("result", {})
+                pts = r.get("points_count", 0)
+                total_vectors += pts
+                col_details.append({
+                    "name": c["name"],
+                    "points": pts,
+                    "indexed": r.get("indexed_vectors_count", 0),
+                    "status": r.get("status", "?"),
+                })
+            stats["qdrant"] = {
+                "total_collections": len(qdrant_collections),
+                "total_vectors": total_vectors,
+                "collections": col_details,
+            }
+    except Exception as e:
+        stats["qdrant"] = {"error": str(e)}
+
+    # ─ Service health ─────────────────────────────────────────────
+    services = {}
+    async with httpx.AsyncClient(timeout=3.0) as client:
+        checks = {
+            "orchestrator": f"{ORCHESTRATOR_URL}/health",
+            "qdrant":        f"{QDRANT_URL}/healthz",
+            "minio":         "http://minio:9000/minio/health/live",
+        }
+        for name, url in checks.items():
+            try:
+                r = await client.get(url)
+                services[name] = "ok" if r.status_code < 400 else "degraded"
+            except Exception:
+                services[name] = "unreachable"
+    stats["services"] = services
+    stats["timestamp"] = datetime.utcnow().isoformat()
+
+    return stats
+
+
+@app.get("/history", tags=["Admin"])
+async def query_history(
+    limit: int = 50,
+    offset: int = 0,
+    db=Depends(get_db),
+    _=Depends(require_admin),
+):
+    """Return paginated query history. Admin only."""
+    with db.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute("SELECT COUNT(*) AS total FROM queries")
+        total = cur.fetchone()["total"]
+
+        cur.execute(
+            """SELECT id, user_id, query_text, response_text,
+                      sources, execution_time_ms, created_at, metadata
+               FROM queries
+               ORDER BY created_at DESC
+               LIMIT %s OFFSET %s""",
+            (limit, offset)
+        )
+        rows = cur.fetchall()
+
+    return {
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "queries": [
+            {
+                **dict(r),
+                "id": str(r["id"]),
+                "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+            }
+            for r in rows
+        ],
+    }
+
+
+@app.get("/documents", tags=["Documents"])
+async def list_documents(
+    collection_id: Optional[str] = None,
+    status: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+    db=Depends(get_db),
+):
+    """List all documents with total count for pagination."""
+    try:
+        # First try orchestrator
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            params = {k: v for k, v in {
+                "collection_id": collection_id,
+                "status": status,
+                "limit": limit,
+                "offset": offset,
+            }.items() if v is not None}
+            response = await client.get(f"{ORCHESTRATOR_URL}/documents", params=params)
+
+            if response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail="Failed to fetch documents")
+
+            data = response.json()
+
+        # Enrich with total count from Postgres
+        try:
+            with db.cursor() as cur:
+                where = ""
+                args = []
+                if status:
+                    where = "WHERE status = %s"
+                    args.append(status)
+                cur.execute(f"SELECT COUNT(*) FROM documents {where}", args)
+                total = cur.fetchone()[0]
+
+                # Also get chunk counts
+                cur.execute(
+                    "SELECT document_id, COUNT(*) AS chunks FROM document_chunks GROUP BY document_id"
+                )
+                chunk_map = {str(r[0]): r[1] for r in cur.fetchall()}
+
+            docs = data.get("documents", data if isinstance(data, list) else [])
+            for doc in docs:
+                doc["chunk_count"] = chunk_map.get(doc.get("id", ""), 0)
+
+            if isinstance(data, dict):
+                data["total"] = total
+                data["documents"] = docs
+            else:
+                data = {"documents": docs, "total": total}
+        except Exception:
+            pass  # return whatever orchestrator returned
+
+        return data
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"List documents error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 if __name__ == "__main__":
     import uvicorn
