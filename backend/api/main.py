@@ -1,25 +1,46 @@
 """
 OpenRAG API Gateway
-Point d'entrée principal pour toutes les requêtes utilisateur
+Main entry point for all user requests
 """
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import httpx
 import os
+import psycopg2
+import psycopg2.extras
 from loguru import logger
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from prometheus_fastapi_instrumentator import Instrumentator
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 
-# Configuration
+# ─── Configuration ─────────────────────────────────────────────────────────────
 ORCHESTRATOR_URL = os.getenv("ORCHESTRATOR_URL", "http://orchestrator:8001")
 API_VERSION = "1.0.0"
 
-# Initialize FastAPI
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    f"host={os.getenv('POSTGRES_HOST','postgres')} "
+    f"port={os.getenv('POSTGRES_PORT','5432')} "
+    f"dbname={os.getenv('POSTGRES_DB','openrag_db')} "
+    f"user={os.getenv('POSTGRES_USER','openrag')} "
+    f"password={os.getenv('POSTGRES_PASSWORD','openrag123')}"
+)
+
+JWT_SECRET  = os.getenv("JWT_SECRET_KEY", "openrag-change-me-in-production-please")
+JWT_ALG     = "HS256"
+JWT_EXPIRE  = int(os.getenv("JWT_EXPIRE_MINUTES", "1440"))  # 24 hours
+
+pwd_ctx       = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+# ─── FastAPI init ───────────────────────────────────────────────────────────────
 app = FastAPI(
     title="OpenRAG API",
     description="API Gateway pour la solution RAG",
@@ -34,14 +55,177 @@ Instrumentator().instrument(app).expose(app)
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # À configurer selon vos besoins
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# ─── DB helpers ────────────────────────────────────────────────────────────────
+
+def get_db():
+    conn = psycopg2.connect(DATABASE_URL)
+    conn.autocommit = True
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+# ─── Auth helpers ───────────────────────────────────────────────────────────────
+
+def hash_password(plain: str) -> str:
+    return pwd_ctx.hash(plain)
+
+def verify_password(plain: str, hashed: str) -> bool:
+    return pwd_ctx.verify(plain, hashed)
+
+def create_token(data: dict) -> str:
+    payload = data.copy()
+    payload["exp"] = datetime.utcnow() + timedelta(minutes=JWT_EXPIRE)
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
+
+async def get_current_user(token: str = Depends(oauth2_scheme), db=Depends(get_db)):
+    credentials_exc = HTTPException(status_code=401, detail="Invalid or expired token",
+                                    headers={"WWW-Authenticate": "Bearer"})
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG])
+        username: str = payload.get("sub")
+        if not username:
+            raise credentials_exc
+    except JWTError:
+        raise credentials_exc
+
+    with db.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute("SELECT id, username, role, is_active FROM users WHERE username = %s", (username,))
+        user = cur.fetchone()
+
+    if not user or not user["is_active"]:
+        raise credentials_exc
+    return dict(user)
+
+async def require_admin(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
+
+# ─── Startup: seed default admin ───────────────────────────────────────────────
+
+@app.on_event("startup")
+async def seed_default_admin():
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM users WHERE username = 'admin'")
+            count = cur.fetchone()[0]
+            if count == 0:
+                cur.execute(
+                    "INSERT INTO users (username, hashed_password, role) VALUES (%s, %s, %s)",
+                    ("admin", hash_password("admin"), "admin")
+                )
+                logger.info("Default admin user created (admin/admin)")
+            else:
+                logger.info("Admin user already exists, skipping seed")
+        conn.close()
+    except Exception as e:
+        logger.error(f"Failed to seed admin user: {e}")
+
+# ─── Auth Pydantic models ───────────────────────────────────────────────────────
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    username: str
+    role: str
+
+class UserOut(BaseModel):
+    id: str
+    username: str
+    role: str
+    is_active: bool
+    created_at: str
+
+class UserCreate(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50)
+    password: str = Field(..., min_length=4)
+    role: str = Field("user", pattern="^(admin|user)$")
+
+# ─── Auth Routes ───────────────────────────────────────────────────────────────
+
+@app.post("/auth/login", response_model=TokenResponse, tags=["Auth"])
+async def login(form: OAuth2PasswordRequestForm = Depends(), db=Depends(get_db)):
+    """Authenticate and receive a JWT access token."""
+    with db.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(
+            "SELECT id, username, hashed_password, role, is_active FROM users WHERE username = %s",
+            (form.username,)
+        )
+        user = cur.fetchone()
+
+    if not user or not user["is_active"] or not verify_password(form.password, user["hashed_password"]):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+
+    token = create_token({"sub": user["username"], "role": user["role"]})
+    return TokenResponse(access_token=token, username=user["username"], role=user["role"])
+
+@app.get("/auth/me", tags=["Auth"])
+async def me(current_user: dict = Depends(get_current_user)):
+    """Return the authenticated user's profile."""
+    return {"username": current_user["username"], "role": current_user["role"]}
+
+@app.get("/auth/users", tags=["Auth"])
+async def list_users(db=Depends(get_db), _=Depends(require_admin)):
+    """List all users. Admin only."""
+    with db.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute("SELECT id, username, role, is_active, created_at FROM users ORDER BY created_at DESC")
+        rows = cur.fetchall()
+    return {"users": [
+        {**dict(r), "id": str(r["id"]), "created_at": r["created_at"].isoformat()}
+        for r in rows
+    ]}
+
+@app.post("/auth/users", response_model=UserOut, tags=["Auth"])
+async def create_user(body: UserCreate, db=Depends(get_db), _=Depends(require_admin)):
+    """Create a new user. Admin only."""
+    with db.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute("SELECT id FROM users WHERE username = %s", (body.username,))
+        if cur.fetchone():
+            raise HTTPException(status_code=409, detail="Username already taken")
+        cur.execute(
+            "INSERT INTO users (username, hashed_password, role) VALUES (%s, %s, %s) "
+            "RETURNING id, username, role, is_active, created_at",
+            (body.username, hash_password(body.password), body.role)
+        )
+        row = dict(cur.fetchone())
+    return UserOut(**{**row, "id": str(row["id"]), "created_at": row["created_at"].isoformat()})
+
+@app.delete("/auth/users/{user_id}", tags=["Auth"])
+async def delete_user(user_id: str, db=Depends(get_db), current=Depends(require_admin)):
+    """Delete a user. Admin only. Cannot delete yourself."""
+    with db.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute("SELECT username FROM users WHERE id = %s", (user_id,))
+        row = cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found")
+    if row["username"] == current["username"]:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+    with db.cursor() as cur:
+        cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+    return {"deleted": user_id}
+
+@app.patch("/auth/users/{user_id}/password", tags=["Auth"])
+async def change_password(user_id: str, body: dict, db=Depends(get_db), _=Depends(require_admin)):
+    """Change a user's password. Admin only."""
+    new_password = body.get("password", "")
+    if len(new_password) < 4:
+        raise HTTPException(status_code=422, detail="Password must be at least 4 characters")
+    with db.cursor() as cur:
+        cur.execute("UPDATE users SET hashed_password = %s WHERE id = %s",
+                    (hash_password(new_password), user_id))
+    return {"status": "updated"}
+
 # ============================================
-# Models
+# Existing Models
 # ============================================
 
 class QueryRequest(BaseModel):
