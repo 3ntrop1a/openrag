@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -10,8 +11,9 @@ import {
   ArrowLeft, RefreshCw, Database
 } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/lib/auth';
 
-const API = 'http://localhost:8000';
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const OLLAMA = 'http://localhost:11434';
 
 type Tab = 'dashboard' | 'documents' | 'upload' | 'ollama';
@@ -489,7 +491,17 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 ];
 
 export default function AdminPage() {
+  const { auth, isAdmin } = useAuth();
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>('dashboard');
+
+  // Redirect if not authenticated or not admin
+  useEffect(() => {
+    if (!auth) { router.replace('/login'); return; }
+    if (!isAdmin()) { router.replace('/'); }
+  }, [auth, router]);
+
+  if (!auth || !isAdmin()) return null;
 
   return (
     <div className="min-h-screen bg-black text-white">
