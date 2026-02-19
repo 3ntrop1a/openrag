@@ -55,14 +55,13 @@ sudo docker-compose up -d
 sudo docker-compose ps
 ```
 
-You should see **9 services** with `Up` status:
+You should see **8 services** with `Up` status:
 
 ```
 NAME                       STATUS
 openrag-api                Up
 openrag-orchestrator       Up
 openrag-embedding          Up
-openrag-frontend-admin     Up
 openrag-postgres           Up
 openrag-redis              Up
 openrag-minio              Up
@@ -99,15 +98,6 @@ Open your browser and test the interfaces:
     **Main interface** - http://localhost:3001
     
     Next.js + ShadcnUI chat with markdown rendering
-  </Card>
-  <Card 
-    title="Admin Panel" 
-    icon="gauge"
-    href="http://localhost:8502"
-  >
-    **Administration dashboard** - http://localhost:8502
-    
-    Document management, upload, statistics
   </Card>
   <Card 
     title="API Swagger" 
