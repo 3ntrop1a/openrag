@@ -12,6 +12,7 @@ import uuid
 from datetime import datetime
 from loguru import logger
 import asyncio
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from services.document_processor import DocumentProcessor
 from services.vector_store import VectorStoreService
@@ -25,6 +26,9 @@ app = FastAPI(
     description="Service d'orchestration pour le système RAG",
     version="1.0.0"
 )
+
+# Prometheus metrics
+Instrumentator().instrument(app).expose(app)
 
 # Initialize services
 db_service = DatabaseService()

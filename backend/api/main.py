@@ -13,6 +13,7 @@ import os
 from loguru import logger
 import uuid
 from datetime import datetime
+from prometheus_fastapi_instrumentator import Instrumentator
 
 # Configuration
 ORCHESTRATOR_URL = os.getenv("ORCHESTRATOR_URL", "http://orchestrator:8001")
@@ -26,6 +27,9 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# Prometheus metrics
+Instrumentator().instrument(app).expose(app)
 
 # CORS Configuration
 app.add_middleware(

@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from typing import List
 from sentence_transformers import SentenceTransformer
 from loguru import logger
+from prometheus_fastapi_instrumentator import Instrumentator
 import os
 import torch
 
@@ -22,6 +23,9 @@ app = FastAPI(
     description="Service de génération d'embeddings",
     version="1.0.0"
 )
+
+# Prometheus metrics
+Instrumentator().instrument(app).expose(app)
 
 # Load model
 logger.info(f"Loading embedding model: {MODEL_NAME}")
