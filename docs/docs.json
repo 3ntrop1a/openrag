@@ -2,7 +2,6 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "OpenRAG",
-  "basePath": "/openrag",
   "logo": {
     "dark": "/logo_blanc.png",
     "light": "/logo_noir.png"
@@ -31,48 +30,48 @@
       {
         "group": "Getting Started",
         "pages": [
-          "introduction",
-          "quickstart",
-          "architecture"
+          "openrag/introduction",
+          "openrag/quickstart",
+          "openrag/architecture"
         ]
       },
       {
         "group": "Installation",
         "pages": [
-          "installation/requirements"
+          "openrag/installation/requirements"
         ]
       },
       {
         "group": "API Reference",
         "pages": [
-          "api-reference/introduction",
-          "api-reference/query/process-query"
+          "openrag/api-reference/introduction",
+          "openrag/api-reference/query/process-query"
         ]
       },
       {
         "group": "Experiments & Research",
         "pages": [
-          "experiments/wte-corpus-analysis",
-          "experiments/astrophysics-success"
+          "openrag/experiments/wte-corpus-analysis",
+          "openrag/experiments/astrophysics-success"
         ]
       },
       {
         "group": "Components",
         "pages": [
-          "components/embedding-chunking",
-          "components/streamlit",
-          "components/postgresql",
-          "components/qdrant",
-          "components/ollama"
+          "openrag/components/embedding-chunking",
+          "openrag/components/streamlit",
+          "openrag/components/postgresql",
+          "openrag/components/qdrant",
+          "openrag/components/ollama"
         ]
       },
       {
         "group": "Tests",
         "pages": [
-          "tests/overview",
-          "tests/installation-tests",
-          "tests/upload-tests",
-          "tests/query-tests"
+          "openrag/tests/overview",
+          "openrag/tests/installation-tests",
+          "openrag/tests/upload-tests",
+          "openrag/tests/query-tests"
         ]
       }
     ]
