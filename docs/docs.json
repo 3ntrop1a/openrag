@@ -10,21 +10,20 @@
   "colors": {
     "primary": "#7C3AED",
     "light": "#A78BFA",
-    "dark": "#6D28D9",
-    "anchors": {
-      "from": "#7C3AED",
-      "to": "#A78BFA"
-    }
+    "dark": "#6D28D9"
   },
-  "topbarLinks": [
-    {
-      "name": "GitHub",
-      "url": "https://github.com/3ntrop1a/openrag"
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/3ntrop1a/openrag"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Web Interface",
+      "href": "https://github.com/3ntrop1a/openrag"
     }
-  ],
-  "topbarCtaButton": {
-    "name": "Web Interface",
-    "url": "http://localhost:3001"
   },
   "navigation": {
     "groups": [
@@ -68,7 +67,9 @@
       }
     ]
   },
-  "footerSocials": {
-    "github": "https://github.com/3ntrop1a/openrag"
+  "footer": {
+    "socials": {
+      "github": "https://github.com/3ntrop1a/openrag"
+    }
   }
 }
