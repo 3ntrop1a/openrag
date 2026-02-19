@@ -17,10 +17,48 @@ In production, replace with your server's URL.
 
 ## Authentication
 
-<Warning>
-  The current version does not require authentication. 
-  Authentication will be added in a future version for production.
-</Warning>
+OpenRAG uses **JWT Bearer tokens**. Obtain a token via the login endpoint, then include it in all subsequent requests.
+
+### Login
+
+```http
+POST /auth/login
+Content-Type: application/x-www-form-urlencoded
+
+username=admin&password=admin
+```
+
+Response:
+```json
+{
+  "access_token": "eyJhbGci...",
+  "token_type": "bearer",
+  "username": "admin",
+  "role": "admin"
+}
+```
+
+### Using the token
+
+```http
+GET /auth/users
+Authorization: Bearer eyJhbGci...
+```
+
+### Auth endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/auth/login` | — | Get JWT token |
+| `GET` | `/auth/me` | User | Current user profile |
+| `GET` | `/auth/users` | Admin | List all users |
+| `POST` | `/auth/users` | Admin | Create user |
+| `DELETE` | `/auth/users/{id}` | Admin | Delete user |
+| `PATCH` | `/auth/users/{id}/password` | Admin | Change password |
+
+<Info>
+  The default admin account (`admin` / `admin`) is created automatically on first startup. Change this password from the Admin panel → Users tab.
+</Info>
 
 ## Response Format
 

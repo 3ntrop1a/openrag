@@ -28,16 +28,26 @@ OpenRAG ships a modern authenticated chat interface built with **Next.js** and *
 
 ## Authentication
 
-OpenRAG uses a lightweight role-based authentication system:
+OpenRAG uses **JWT-based authentication** backed by PostgreSQL. Credentials are verified against the `users` table — not hardcoded anywhere.
 
-| Credentials | Role | Access |
-|-------------|------|--------|
-| `admin` / `admin` | Admin | Chat + Admin panel (document upload, collections, Ollama management) |
-| Any other username + password | User | Chat only |
+| Role | Access |
+|------|--------|
+| `admin` | Chat + full Admin panel (documents, upload, Ollama, **user management**) |
+| `user` | Chat interface only |
 
-<Note>
-For production deployments, replace the credential check in `lib/auth.tsx` with an actual backend authentication endpoint.
-</Note>
+**Default admin account** is seeded automatically on first startup: `admin` / `admin`.  
+Change this password immediately from the Users tab in the Admin panel.
+
+### How it works
+
+1. `POST /auth/login` validates credentials against bcrypt-hashed passwords in PostgreSQL
+2. A signed **JWT token** (HS256, 24h expiry) is returned and stored in `localStorage`
+3. All admin API calls include `Authorization: Bearer <token>`
+4. The `/auth/me` endpoint validates the token and returns the current user's role
+
+<Warning>
+Set `JWT_SECRET_KEY` to a long random string in production. The default value is insecure.
+</Warning>
 
 ## Running the Interface
 
@@ -58,7 +68,11 @@ Open [http://localhost:3000](http://localhost:3000).
 ```mermaid
 sequenceDiagram
     User->>Next.js (3000): Sign in
-    Next.js (3000)->>User: Store role in localStorage
+    Next.js (3000)->>API (8000): POST /auth/login
+    API (8000)->>PostgreSQL: Verify bcrypt hash
+    PostgreSQL-->>API (8000): User row
+    API (8000)-->>Next.js (3000): JWT token + role
+    Next.js (3000)->>User: Store JWT in localStorage
     User->>Next.js (3000): Question
     Next.js (3000)->>API (8000): POST /query
     API (8000)->>Orchestrator: RAG pipeline
@@ -140,6 +154,8 @@ frontend-nextjs/
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | API Gateway URL baked in at build time |
+| `JWT_SECRET_KEY` | `openrag-change-me-in-production-please` | Secret used to sign JWT tokens (set this in production) |
+| `JWT_EXPIRE_MINUTES` | `1440` | Token lifetime in minutes (default: 24 hours) |
 
 ## Production Build (Docker)
 
@@ -154,83 +170,27 @@ sudo docker compose up -d frontend-nextjs
 
 The Dockerfile uses a multi-stage build (`deps` → `builder` → `runner`) and Next.js `standalone` output mode for a minimal production image.
 
-## Architecture
+## Admin Panel — Users Tab
 
-```mermaid
-sequenceDiagram
-    User->>Next.js (3001): Question
-    Next.js (3001)->>API (8000): POST /query
-    API (8000)->>Orchestrator: RAG pipeline
-    Orchestrator->>Qdrant: Vector search
-    Qdrant-->>Orchestrator: Top-k chunks
-    Orchestrator->>Ollama: Generate answer
-    Ollama-->>Orchestrator: Markdown response
-    Orchestrator-->>API (8000): JSON
-    API (8000)-->>Next.js (3001): { answer }
-    Next.js (3001)-->>User: Rendered markdown
-```
+The **Users** tab in the admin panel (`/admin`) allows full user management from the UI:
 
-## Key Features
+- **Create user**: set username, password (minimum 4 characters), and role (`user` or `admin`)
+- **Delete user**: removes user from the database (cannot delete your own account)
+- **Change password**: inline password reset for any user
 
-<CardGroup cols={2}>
-  <Card title="Markdown Rendering" icon="markdown">
-    LLM responses are rendered as full markdown — headers, bold, lists, code blocks.
-  </Card>
-  <Card title="Dark Mode" icon="moon">
-    Dark theme by default via `<html className="dark">` and ShadcnUI's CSS variables.
-  </Card>
-  <Card title="Auto-scroll" icon="arrow-down">
-    Chat automatically scrolls to the latest message using a `useRef` bottom anchor.
-  </Card>
-  <Card title="Loading State" icon="spinner">
-    Shows a "Generating response..." spinner while the LLM generates (typically 60-90s on CPU).
-  </Card>
-</CardGroup>
+All requests are authenticated with the JWT token stored in `localStorage` and sent as `Authorization: Bearer <token>` to the protected `/auth/users` API endpoints.
 
-## API Request
+## Recommended Screenshots
 
-Each query sends the following payload to the API:
+The following screenshots are most useful in the documentation:
 
-```json
-{
-  "query": "User question",
-  "collection_id": "default",
-  "max_results": 5,
-  "use_llm": true
-}
-```
-
-`use_llm: true` routes through the full RAG pipeline (vector search → context augmentation → LLM generation). Setting it to `false` returns only retrieved chunks without LLM synthesis.
-
-## File Structure
-
-```
-frontend-nextjs/
-├── app/
-│   ├── layout.tsx          # Root layout — dark mode, metadata
-│   ├── page.tsx            # Main chat component
-│   └── globals.css         # Tailwind + typography imports
-├── components/ui/          # ShadcnUI primitives (button, input, card…)
-├── package.json
-└── tsconfig.json
-```
-
-## Dependencies
-
-| Package | Purpose |
-|---------|---------|
-| `next` | React framework with App Router |
-| `shadcn/ui` | Accessible UI component library |
-| `react-markdown` | Render LLM markdown responses |
-| `@tailwindcss/typography` | `prose` / `prose-invert` styles |
-| `lucide-react` | Icon set |
-
-## Production Build
-
-```bash
-cd frontend-nextjs
-npm run build
-npm start          # serves on port 3001
-```
-
-For a fully Docker-integrated deployment, add a `Dockerfile` to `frontend-nextjs/` and a service entry in `docker-compose.yml` mapping port 3001.
+| Screenshot | Description |
+|-----------|-------------|
+| Login page | `http://localhost:3000/login` — the sign-in form |
+| Chat interface (user) | Default view without Admin button |
+| Chat interface (admin) | Header shows amber `(admin)` badge and Admin button |
+| Admin — Dashboard | Service health grid + stats row |
+| Admin — Upload | Drag-and-drop file upload form |
+| Admin — Users | User list + create form |
+| Grafana dashboard | OpenRAG Overview — all panels loaded |
+| Prometheus targets | 8/8 targets `UP` |
