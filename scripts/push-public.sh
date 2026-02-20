@@ -18,7 +18,7 @@ if [[ "$CURRENT" != "main" ]]; then
   exit 1
 fi
 
-if ! git diff --quiet || ! git diff --cached --quiet; then
+if ! git diff --quiet && ! git diff --cached --quiet; then
   echo "❌ Uncommitted changes detected — commit or stash first"
   exit 1
 fi
