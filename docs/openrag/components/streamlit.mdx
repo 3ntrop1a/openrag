@@ -170,27 +170,96 @@ sudo docker compose up -d frontend-nextjs
 
 The Dockerfile uses a multi-stage build (`deps` → `builder` → `runner`) and Next.js `standalone` output mode for a minimal production image.
 
-## Admin Panel — Users Tab
+## Admin Panel
 
-The **Users** tab in the admin panel (`/admin`) allows full user management from the UI:
+The admin panel at `http://localhost:3000/admin` is accessible only to users with the `admin` role. It has **8 tabs**, each dedicated to a different aspect of the system.
 
-- **Create user**: set username, password (minimum 4 characters), and role (`user` or `admin`)
-- **Delete user**: removes user from the database (cannot delete your own account)
-- **Change password**: inline password reset for any user
+### Dashboard
 
-All requests are authenticated with the JWT token stored in `localStorage` and sent as `Authorization: Bearer <token>` to the protected `/auth/users` API endpoints.
+The landing tab. Pulls live data from `GET /stats` and displays:
 
-## Recommended Screenshots
+- **Primary stats row**: total documents (e.g. 534), total vectors (e.g. 1909 across all Qdrant collections), total chunks, total queries
+- **Secondary stats row**: average query time (ms), queries in the last 24h / 7d, number of collections, number of users
+- **Document status breakdown**: a color-coded progress bar showing processed / processing / failed counts at a glance
+- **Qdrant collections**: one card per collection with vector count, indexed count, and status badge
+- **Service health grid**: live reachability check for Orchestrator, Qdrant, and MinIO with green/red indicators
 
-The following screenshots are most useful in the documentation:
+### Collections
 
-| Screenshot | Description |
-|-----------|-------------|
-| Login page | `http://localhost:3000/login` — the sign-in form |
-| Chat interface (user) | Default view without Admin button |
-| Chat interface (admin) | Header shows amber `(admin)` badge and Admin button |
-| Admin — Dashboard | Service health grid + stats row |
-| Admin — Upload | Drag-and-drop file upload form |
-| Admin — Users | User list + create form |
-| Grafana dashboard | OpenRAG Overview — all panels loaded |
-| Prometheus targets | 8/8 targets `UP` |
+Queries `GET /collections` and shows one card per Qdrant collection with:
+
+- Collection name and status badge (`green` / degraded)
+- **Vectors** count (actual Qdrant points, not a cached DB value)
+- **Indexed vectors** count
+- **Segments** count
+- **Vector size** (e.g. 768 for multilingual model)
+- Creation date
+
+This tab was specifically built to fix the old bug where the UI showed "50 documents" when there were actually 500+ — vector counts come directly from the Qdrant API.
+
+### Documents
+
+Paginated list of all documents from `GET /documents` (50 per page):
+
+- **Search** by filename (client-side filter)
+- **Status filter** dropdown (processed / processing / failed / uploaded)
+- Per-document columns: filename, status (color-coded), collection, chunk count
+- **Delete** button per document (removes from DB + Qdrant vectors)
+- Pagination controls with total count display
+
+### Upload
+
+File upload form:
+
+- Click-to-select file area (PDF, DOCX, TXT, MD)
+- Collection name input (default: `default`)
+- Submit → `POST /documents/upload` multipart form
+- Success banner showing the assigned `document_id`
+- Processing happens asynchronously in the Orchestrator — check the Documents tab for status
+
+### History
+
+Paginated query log from `GET /history` (admin JWT required, 20 per page):
+
+- Total query count
+- Per-query row: question text, timestamp (relative e.g. "3h ago"), execution time, user ID, number of sources
+- **Expandable row**: click to reveal the full LLM response and the list of source documents with relevance scores
+- Pagination controls
+
+### Monitoring
+
+Links and embeds for the observability stack:
+
+| Link | Description |
+|------|-------------|
+| Prometheus | http://localhost:9090 — metric scraping + alerting |
+| Grafana | http://localhost:3002 — pre-configured OpenRAG Overview dashboard |
+| Qdrant UI | http://localhost:6333/dashboard — vector store inspector |
+| MinIO Console | http://localhost:9001 — S3-compatible object storage |
+| API Swagger | http://localhost:8000/docs — FastAPI interactive docs |
+
+An embedded Grafana iframe shows the live dashboard directly in the page. Quick-links to common Prometheus query graphs (request rate, P95 latency, Qdrant collections) are also available.
+
+### Ollama
+
+Pulls data from the Ollama HTTP API (port 11434):
+
+- Ollama version
+- **Running models**: models currently loaded in RAM (shown with animated dot)
+- **Installed models**: all pulled models with disk size and last-modified date
+
+Example commands shown when no model is installed:
+```bash
+docker exec -it openrag-ollama ollama pull llama3.1:8b
+```
+
+### Users
+
+Full user management backed by `GET/POST/DELETE/PATCH /auth/users` (admin JWT required):
+
+- **User list**: username, role badge (`admin` / `user`), creation date
+- **Create user**: inline form — username, password (visibility toggle), role selector (`user` or `admin`)
+- **Delete user**: one-click delete with confirmation (cannot delete your own account)
+- **Change password**: expandable inline form per user — minimum 4 characters
+
+All requests include `Authorization: Bearer <token>` automatically.

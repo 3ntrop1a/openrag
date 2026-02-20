@@ -32,12 +32,7 @@
         "pages": [
           "openrag/introduction",
           "openrag/quickstart",
-          "openrag/architecture"
-        ]
-      },
-      {
-        "group": "Installation",
-        "pages": [
+          "openrag/architecture",
           "openrag/installation/requirements"
         ]
       },
@@ -49,13 +44,6 @@
         ]
       },
       {
-        "group": "Experiments & Research",
-        "pages": [
-          "openrag/experiments/wte-corpus-analysis",
-          "openrag/experiments/astrophysics-success"
-        ]
-      },
-      {
         "group": "Components",
         "pages": [
           "openrag/components/embedding-chunking",
@@ -63,6 +51,13 @@
           "openrag/components/postgresql",
           "openrag/components/qdrant",
           "openrag/components/ollama"
+        ]
+      },
+      {
+        "group": "Experiments & Research",
+        "pages": [
+          "openrag/experiments/wte-corpus-analysis",
+          "openrag/experiments/astrophysics-success"
         ]
       },
       {

@@ -12,7 +12,7 @@ OpenRAG requires significant resources to run a local LLM (llama3.1:8b) and the 
 ### MINIMUM Configuration (CPU-only Mode)
 
 <Warning>
-This configuration will allow the system to run but with limited performance. The LLM will take **50-75 seconds** for the first response, then **5-15 seconds** for subsequent ones.
+This configuration will allow the system to run but with limited performance. The LLM will take **70-90 seconds or more** for every response — in CPU-only mode there is no warm-up shortcut, all queries are slow.
 </Warning>
 
 <CardGroup cols={2}>
@@ -200,7 +200,7 @@ OpenRAG uses **10 services** with the following ports:
 
 | Service | Port | URL | Description |
 |---------|------|-----|-------------|
-| **Chat Interface** | 3001 | http://localhost:3001 | Next.js user chat (run manually) |
+| **Chat Interface** | 3000 | http://localhost:3000 | Next.js user chat + admin panel |
 | **REST API** | 8000 | http://localhost:8000 | API entry point |
 | **MinIO Console** | 9001 | http://localhost:9001 | Storage management (admin/admin123456) |
 | **Qdrant Dashboard** | 6333 | http://localhost:6333/dashboard | Vector DB |
@@ -285,7 +285,7 @@ sudo kill -9 <PID>
 
 <Tip>
 With GPU: LLM responds in **1-3 seconds**  
-Without GPU: LLM responds in **5-15 seconds** (after first load 50-75s)
+Without GPU: LLM responds in **70-90 seconds or more** (CPU-only, every query)
 </Tip>
 
 ### Apple Silicon (M1/M2/M3)
@@ -323,7 +323,7 @@ nvidia-smi  # If you have an NVIDIA GPU
 <Check>Docker **26.0+** installed</Check>
 <Check>Docker Compose **2.26+** installed</Check>
 <Check>User in `docker` group</Check>
-<Check>Ports **8000, 3001** available</Check>
+<Check>Ports **8000, 3000** available</Check>
 <Check>Stable internet connection (5 GB model download)</Check>
 
 ### Configuration per Use Case
@@ -337,8 +337,7 @@ nvidia-smi  # If you have an NVIDIA GPU
     
     **Expected Performance:**
     - Vector search: 100-200 ms
-    - LLM first response: 50-75 s (model loading)
-    - LLM subsequent: 5-15 s
+    - LLM response: **70-90 seconds or more** (CPU-only, every query)
     
     **Ideal for:** Testing, development, personal use
   </Tab>

@@ -101,7 +101,7 @@ Accept: application/json
   <Card
     title="POST /query"
     icon="message-question"
-    href="/api-reference/query/process-query"
+    href="/openrag/api-reference/query/process-query"
   >
     Process a user query and generate a response
   </Card>
@@ -113,28 +113,24 @@ Accept: application/json
   <Card
     title="POST /documents/upload"
     icon="file-upload"
-    href="/api-reference/documents/upload"
   >
     Upload a new document
   </Card>
   <Card
     title="GET /documents"
     icon="list"
-    href="/api-reference/documents/list"
   >
     List all documents
   </Card>
   <Card
     title="GET /documents/{id}"
     icon="file"
-    href="/api-reference/documents/get"
   >
     Retrieve a specific document
   </Card>
   <Card
     title="DELETE /documents/{id}"
     icon="trash"
-    href="/api-reference/documents/delete"
   >
     Delete a document
   </Card>
@@ -146,9 +142,25 @@ Accept: application/json
   <Card
     title="GET /collections"
     icon="folder"
-    href="/api-reference/collections/list"
   >
-    List all collections
+    List all collections with vector counts
+  </Card>
+</CardGroup>
+
+### Statistics & History
+
+<CardGroup cols={2}>
+  <Card
+    title="GET /stats"
+    icon="chart-bar"
+  >
+    Aggregate system stats (Postgres + Qdrant + health)
+  </Card>
+  <Card
+    title="GET /history"
+    icon="clock-rotate-left"
+  >
+    Paginated query history (admin only)
   </Card>
 </CardGroup>
 
@@ -277,24 +289,7 @@ http://localhost:8000/docs
 
 You can directly test all endpoints there!
 
-## Webhooks (coming soon)
-
-Webhooks will allow you to receive notifications when:
-- Document processing complete
-- Processing errors
-- New documents added
-
-## SDK (coming soon)
-
-Official SDKs will soon be available for:
-- Python
-- JavaScript/TypeScript
-- Go
-- Java
-
 ## Support
 
 For any questions about the API:
-- 📚 Documentation: [docs.openrag.io](https://docs.openrag.io)
-- 💬 Discord: [discord.gg/openrag](https://discord.gg/openrag)
-- 🐛 Issues: [github.com/openrag/issues](https://github.com/openrag/issues)
+- 🐛 Issues: [github.com/3ntrop1a/openrag/issues](https://github.com/3ntrop1a/openrag/issues)

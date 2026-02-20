@@ -50,7 +50,6 @@ graph LR
   <Card
     title="Modular Architecture"
     icon="cubes"
-    href="/architecture"
   >
     Decoupled microservices with Docker
   </Card>
@@ -62,7 +61,7 @@ OpenRAG consists of **10 Docker services**:
 
 | Service | Port | Role |
 |---------|------|------|
-| **frontend-nextjs** | 3001 | User chat interface (Next.js + ShadcnUI) |
+| **frontend-nextjs** | 3000 | User chat interface (Next.js + ShadcnUI) |
 | **api** | 8000 | REST API (FastAPI) |
 | **orchestrator** | 8001 | RAG workflow coordination |
 | **embedding** | 8002 | Embeddings generation (sentence-transformers) |
@@ -91,32 +90,6 @@ OpenRAG consists of **10 Docker services**:
     Explore and synthesize large collections of scientific research papers.
   </Accordion>
 </AccordionGroup>
-
-## Quick Start
-
-<Steps>
-  <Step title="Clone and Launch">
-    ```bash
-    git clone https://github.com/3ntrop1a/openrag.git
-    cd openrag
-    sudo docker-compose up -d
-    ```
-  </Step>
-  
-  <Step title="Download LLM Model">
-    ```bash
-    docker exec -it openrag-ollama ollama pull llama3.1:8b
-    ```
-  </Step>
-  
-  <Step title="Open Chat Interface">
-    Navigate to http://localhost:3001 and ask your first question!
-  </Step>
-</Steps>
-
-<Info>
-**First time?** Initial startup takes 10-15 minutes (downloading Docker images + 4.9 GB LLM model)
-</Info>
 
 ## Next Steps
 

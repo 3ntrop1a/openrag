@@ -40,9 +40,34 @@ cd openrag
 ### 2. Launch All Services
 
 ```bash
-# Start the 10 microservices
+# Start all microservices
 sudo docker-compose up -d
 ```
+
+<Accordion title="What does the stack look like? (docker-compose.yml overview)">
+
+```yaml
+services:
+  # Infrastructure
+  postgres:          # PostgreSQL 16 — document metadata & query history
+  redis:             # Redis 7 — cache & task queue
+  minio:             # MinIO — S3-compatible file storage (port 9000/9001)
+  qdrant:            # Qdrant — vector database (port 6333)
+  ollama:            # Ollama — local LLM server (port 11434)
+
+  # Application
+  embedding:         # Sentence-transformer embedding service (port 8002)
+  orchestrator:      # RAG pipeline orchestration (port 8001)
+  api:               # FastAPI REST gateway (port 8000)
+  frontend-nextjs:   # Next.js chat + admin panel (port 3000)
+
+  # Monitoring (optional — started with --profile monitoring)
+  prometheus:        # Metrics scraping (port 9090)
+  grafana:           # Pre-configured dashboards (port 3002)
+```
+
+All services are connected to the `openrag-network` Docker bridge. Only the ports above are exposed to your host — everything else is internal.
+</Accordion>
 
 <Info>
 **First startup:** Downloading Docker images and LLM model (4.9 GB). Allow **10-15 minutes** depending on your connection.
@@ -93,9 +118,9 @@ Open your browser and test the interfaces:
   <Card 
     title="User Chat" 
     icon="messages"
-    href="http://localhost:3001"
+    href="http://localhost:3000"
   >
-    **Main interface** - http://localhost:3001
+    **Main interface** - http://localhost:3000
     
     Next.js + ShadcnUI chat with markdown rendering
   </Card>
@@ -125,7 +150,7 @@ Open your browser and test the interfaces:
 
 <Steps>
   <Step title="Open the user interface">
-    Navigate to http://localhost:3001
+    Navigate to http://localhost:3000
   </Step>
   
   <Step title="Ask a test question">
@@ -143,7 +168,7 @@ Open your browser and test the interfaces:
     2. Generate a response with the LLM (5-15 s after first load)
     3. Display sources below with relevance scores
     
-    **Important:** The first query takes **50-75 seconds** (loading LLM model). Subsequent ones are much faster (5-15s).
+    **Important:** The first query takes **70-90 seconds or more** (loading LLM model into RAM — CPU mode is always slow).
   </Step>
 </Steps>
 
@@ -199,8 +224,7 @@ Open your browser and test the interfaces:
     ```
     
     <Warning>
-    **First query:** 50-75 seconds (loading llama3.1:8b into RAM)  
-    **Subsequent queries:** 5-15 seconds
+    **Every query:** 70-90 seconds or more (CPU-only, llama3.1:8b)
     </Warning>
   </Step>
 </Steps>
@@ -211,7 +235,7 @@ Open your browser and test the interfaces:
 
 <Steps>
   <Step title="Open admin panel">
-    http://localhost:8502 (legacy Streamlit admin) or http://localhost:3000/admin (Next.js admin)
+    http://localhost:3000/admin
   </Step>
   
   <Step title="Go to Upload">
@@ -346,7 +370,7 @@ docker exec -it openrag-ollama ollama pull llama3.1:8b
 ### Queries very slow (>75s)
 
 <Tip>
-**Solution:** Use a GPU! See [GPU Configuration](/installation/requirements#gpu-nvidia-recommandé) to go from 50-75s to 1-3s per query.
+**Solution:** Use a GPU! See [GPU Configuration](/openrag/installation/requirements#gpu-nvidia-recommandé) to go from 70-90s to 1-3s per query.
 </Tip>
 
 ### No results for queries
