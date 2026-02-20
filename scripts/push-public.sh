@@ -1,6 +1,7 @@
 #!/bin/bash
-# push-public.sh — syncs public openrag repo, stripping docs/, docs_wte/, guide_openrag.txt
-# Usage: bash scripts/push-public.sh  OR  make push-public
+# push-public.sh — syncs public openrag repo
+# Strips: docs/, docs_wte/, guide_openrag.txt, upload_wte_docs.sh, scripts/push-public.sh
+# Usage: bash scripts/push-public.sh
 
 set -e
 
@@ -9,7 +10,7 @@ TEMP_BRANCH="public-sync-$$"
 
 # Cleanup: delete private files from disk so git checkout main can restore them
 cleanup() {
-  rm -rf docs/ docs_wte/ guide_openrag.txt 2>/dev/null || true
+  rm -rf docs/ docs_wte/ guide_openrag.txt upload_wte_docs.sh scripts/push-public.sh 2>/dev/null || true
   git checkout -f main 2>/dev/null || true
   git branch -D "$TEMP_BRANCH" 2>/dev/null || true
 }
@@ -30,7 +31,7 @@ echo "Creating temp branch $TEMP_BRANCH..."
 git checkout -b "$TEMP_BRANCH"
 
 echo "Removing private-only files from index..."
-git rm -rf --cached docs/ docs_wte/ guide_openrag.txt 2>/dev/null || true
+git rm -rf --cached docs/ docs_wte/ guide_openrag.txt upload_wte_docs.sh scripts/push-public.sh 2>/dev/null || true
 
 if ! git diff --cached --quiet; then
   git commit -m "chore: strip private files for public sync"
@@ -42,3 +43,4 @@ git push "$PUBLIC_REMOTE" "$TEMP_BRANCH:main" --force
 echo ""
 echo "Public repo synced: https://github.com/3ntrop1a/openrag"
 # trap fires on exit: removes private files from disk, restores main
+
