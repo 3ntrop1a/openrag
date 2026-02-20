@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script pour retraiter tous les documents uploadés
+Script to reprocess all previously uploaded documents
 """
 
 import asyncio

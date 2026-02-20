@@ -1,5 +1,5 @@
 """
-Service de stockage MinIO
+MinIO Object Storage Service
 """
 
 from typing import Optional
@@ -11,7 +11,7 @@ import io
 
 
 class MinIOStorage:
-    """Gère le stockage d'objets avec MinIO"""
+    """Handles object storage operations with MinIO"""
     
     def __init__(self):
         self.endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
@@ -30,7 +30,7 @@ class MinIOStorage:
         self._ensure_bucket(os.getenv("MINIO_BUCKET_NAME", "documents"))
     
     def _ensure_bucket(self, bucket_name: str):
-        """Crée le bucket s'il n'existe pas"""
+        """Create the bucket if it does not already exist"""
         try:
             if not self.client.bucket_exists(bucket_name):
                 self.client.make_bucket(bucket_name)
@@ -46,7 +46,7 @@ class MinIOStorage:
         file_data: bytes,
         content_type: Optional[str] = None
     ):
-        """Upload un fichier dans MinIO"""
+        """Upload a file to MinIO"""
         try:
             self._ensure_bucket(bucket_name)
             
@@ -68,7 +68,7 @@ class MinIOStorage:
             raise
     
     async def download_file(self, bucket_name: str, object_key: str) -> bytes:
-        """Télécharge un fichier depuis MinIO"""
+        """Download a file from MinIO"""
         try:
             response = self.client.get_object(bucket_name, object_key)
             data = response.read()
@@ -83,7 +83,7 @@ class MinIOStorage:
             raise
     
     async def delete_file(self, bucket_name: str, object_key: str):
-        """Supprime un fichier de MinIO"""
+        """Delete a file from MinIO"""
         try:
             self.client.remove_object(bucket_name, object_key)
             logger.info(f"File deleted: {object_key} from {bucket_name}")
@@ -92,7 +92,7 @@ class MinIOStorage:
             raise
     
     def file_exists(self, bucket_name: str, object_key: str) -> bool:
-        """Vérifie si un fichier existe"""
+        """Check whether a file exists in the bucket"""
         try:
             self.client.stat_object(bucket_name, object_key)
             return True
@@ -100,7 +100,7 @@ class MinIOStorage:
             return False
     
     def health_check(self):
-        """Vérifie la santé de MinIO"""
+        """Check MinIO connectivity"""
         try:
             self.client.list_buckets()
             return True

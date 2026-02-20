@@ -1,5 +1,5 @@
 """
-Service LLM - Interface avec les modèles de langage
+LLM Service - Interface with language model providers
 """
 
 from typing import List, Optional
@@ -10,7 +10,7 @@ import json
 
 
 class LLMService:
-    """Gère les interactions avec le LLM"""
+    """Handles interactions with configured LLM providers"""
     
     def __init__(self):
         self.provider = os.getenv("LLM_PROVIDER", "ollama")  # ollama, openai, anthropic
@@ -33,7 +33,7 @@ class LLMService:
         system_prompt: Optional[str] = None
     ) -> str:
         """
-        Génère une réponse basée sur la requête et les contextes
+        Generate an answer from the query and retrieved context chunks.
         """
         # Build the prompt
         if system_prompt is None:
@@ -41,20 +41,20 @@ class LLMService:
         
         context_text = "\n\n---\n\n".join([ctx for ctx in contexts])
         
-        user_prompt = f"""Informations disponibles :
+        user_prompt = f"""Available information:
 {context_text}
 
 ---
 
-Question : {query}
+Question: {query}
 
-Instructions :
-- Répondez de manière précise et détaillée en vous basant UNIQUEMENT sur les informations ci-dessus
-- Fournissez tous les détails techniques pertinents disponibles dans le contexte
-- Organisez votre réponse de manière structurée (listes à puces, étapes numérotées si approprié)
-- Ne mentionnez PAS les numéros de documents ou sources dans votre réponse
-- Si le contexte ne contient pas suffisamment d'informations, indiquez-le clairement
-- Répondez directement à la question sans préambule inutile"""
+Instructions:
+- Answer accurately and in detail using ONLY the information provided above
+- Include all relevant technical details available in the context
+- Structure your response clearly (bullet points, numbered steps where appropriate)
+- Do NOT reference document numbers or sources in your answer
+- If the context does not contain enough information, state that clearly
+- Answer the question directly without unnecessary preamble"""
 
         try:
             if self.provider == "ollama":
@@ -71,7 +71,7 @@ Instructions :
             raise
     
     async def _generate_with_ollama(self, system_prompt: str, user_prompt: str) -> str:
-        """Génère une réponse avec Ollama"""
+        """Generate a response using Ollama"""
         try:
             logger.info(f"Calling Ollama at {self.base_url} with model {self.model}")
             async with httpx.AsyncClient(timeout=300.0) as client:  # Increased to 5 minutes
@@ -104,7 +104,7 @@ Instructions :
             raise
     
     async def _generate_with_openai(self, system_prompt: str, user_prompt: str) -> str:
-        """Génère une réponse avec OpenAI"""
+        """Generate a response using OpenAI"""
         try:
             async with httpx.AsyncClient(timeout=120.0) as client:
                 response = await client.post(
@@ -135,7 +135,7 @@ Instructions :
             raise
     
     async def _generate_with_anthropic(self, system_prompt: str, user_prompt: str) -> str:
-        """Génère une réponse avec Anthropic Claude"""
+        """Generate a response using Anthropic Claude"""
         try:
             async with httpx.AsyncClient(timeout=120.0) as client:
                 response = await client.post(
@@ -167,15 +167,15 @@ Instructions :
             raise
     
     def _get_default_system_prompt(self) -> str:
-        """Retourne le prompt système par défaut"""
-        return """Vous êtes un assistant technique expert spécialisé dans la téléphonie d'entreprise, les solutions Cisco et la plateforme WTE (Webex Teams Edition) d'Orange.
+        """Return the default system prompt"""
+        return """You are a knowledgeable assistant. Answer questions accurately and helpfully based on the provided context.
 
-Règles strictes :
-1. Répondez UNIQUEMENT en vous basant sur les informations fournies dans le contexte
-2. Fournissez des réponses détaillées, précises et complètes avec tous les détails techniques disponibles
-3. Ne mentionnez JAMAIS les numéros de documents, les sources ou que vous vous basez sur des documents
-4. Répondez comme si vous connaissiez ces informations de manière naturelle
-5. Utilisez un format structuré (listes, étapes, sections) pour une meilleure lisibilité
-6. Si l'information n'est pas disponible dans le contexte, indiquez simplement que vous n'avez pas cette information
-7. Soyez technique mais compréhensible
-8. Répondez en français de manière professionnelle et directe"""
+Strict rules:
+1. Answer ONLY based on the information provided in the context
+2. Give detailed, precise and complete responses using all relevant technical details available
+3. NEVER mention document numbers, source references, or that you are relying on documents
+4. Respond naturally as if you already know this information
+5. Use a structured format (lists, numbered steps, sections) for clarity
+6. If the information is not available in the context, clearly state that you do not have that information
+7. Be technical yet understandable
+8. Respond in the same language as the user's question"""

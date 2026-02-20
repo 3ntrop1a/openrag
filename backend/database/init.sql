@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS queries (
     user_id VARCHAR(255),
     query_text TEXT NOT NULL,
     response_text TEXT,
-    sources JSONB, -- Liste des documents sources utilisés
+    sources JSONB, -- List of source documents used
     execution_time_ms INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     metadata JSONB

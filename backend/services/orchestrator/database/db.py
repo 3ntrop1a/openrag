@@ -1,5 +1,5 @@
 """
-Service de base de données PostgreSQL
+PostgreSQL Database Service
 """
 
 from typing import List, Dict, Any, Optional
@@ -11,7 +11,7 @@ from datetime import datetime
 
 
 class DatabaseService:
-    """Gère les opérations sur PostgreSQL"""
+    """Handles PostgreSQL database operations"""
     
     def __init__(self):
         self.host = os.getenv("POSTGRES_HOST", "postgres")
@@ -22,7 +22,7 @@ class DatabaseService:
         self.pool = None
     
     async def _get_pool(self):
-        """Obtient ou crée le pool de connexions"""
+        """Get or create the connection pool"""
         if self.pool is None:
             self.pool = await asyncpg.create_pool(
                 host=self.host,
@@ -36,7 +36,7 @@ class DatabaseService:
         return self.pool
     
     async def check_connection(self):
-        """Vérifie la connexion à la base"""
+        """Verify the database connection"""
         pool = await self._get_pool()
         async with pool.acquire() as conn:
             await conn.fetchval("SELECT 1")
@@ -54,7 +54,7 @@ class DatabaseService:
         minio_object_key: str,
         collection_id: str = "default"
     ):
-        """Crée un nouveau document"""
+        """Create a new document record"""
         pool = await self._get_pool()
         async with pool.acquire() as conn:
             await conn.execute(
@@ -81,7 +81,7 @@ class DatabaseService:
                 )
     
     async def get_document(self, document_id: str) -> Optional[Dict[str, Any]]:
-        """Récupère un document par ID"""
+        """Retrieve a document by ID"""
         pool = await self._get_pool()
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
@@ -126,7 +126,7 @@ class DatabaseService:
             return [dict(row) for row in rows]
     
     async def update_document_status(self, document_id: str, status: str):
-        """Met à jour le statut d'un document"""
+        """Update the processing status of a document"""
         pool = await self._get_pool()
         async with pool.acquire() as conn:
             await conn.execute(
@@ -157,7 +157,7 @@ class DatabaseService:
         vector_id: str,
         metadata: Dict[str, Any]
     ):
-        """Crée un chunk de document"""
+        """Create a document chunk record"""
         pool = await self._get_pool()
         async with pool.acquire() as conn:
             await conn.execute(
@@ -169,7 +169,7 @@ class DatabaseService:
             )
     
     async def get_chunk_by_vector_id(self, vector_id: str) -> Optional[Dict[str, Any]]:
-        """Récupère un chunk par son vector_id"""
+        """Retrieve a chunk by its vector ID"""
         pool = await self._get_pool()
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
@@ -183,7 +183,7 @@ class DatabaseService:
             return None
     
     async def get_document_chunks(self, document_id: str) -> List[Dict[str, Any]]:
-        """Récupère tous les chunks d'un document"""
+        """Retrieve all chunks for a given document"""
         pool = await self._get_pool()
         async with pool.acquire() as conn:
             rows = await conn.fetch(
@@ -205,7 +205,7 @@ class DatabaseService:
         user_id: Optional[str] = None,
         execution_time_ms: Optional[int] = None
     ):
-        """Sauvegarde une requête dans l'historique"""
+        """Save a query to the history table"""
         pool = await self._get_pool()
         async with pool.acquire() as conn:
             await conn.execute(
@@ -221,7 +221,7 @@ class DatabaseService:
     # ============================================
     
     async def create_processing_job(self, job_type: str, document_id: str) -> str:
-        """Crée un job de traitement"""
+        """Create a processing job record"""
         pool = await self._get_pool()
         async with pool.acquire() as conn:
             row = await conn.fetchrow(

@@ -1,7 +1,145 @@
 #!/bin/bash
 
-# Script de test rapide du système OpenRAG
+# Quick system test for OpenRAG
 # Usage: ./test-system.sh
+
+echo "=================================="
+echo "OpenRAG - Full System Test"
+echo "=================================="
+echo ""
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Test 1: Running services
+echo "1. Checking running services..."
+SERVICES=$(sudo docker-compose ps --services | wc -l)
+RUNNING=$(sudo docker-compose ps --filter "status=running" -q | wc -l)
+
+if [ "$SERVICES" -eq 10 ] && [ "$RUNNING" -eq 10 ]; then
+    echo -e "${GREEN}✓ All services are running (10/10)${NC}"
+else
+    echo -e "${RED}✗ Service issue: $RUNNING/$SERVICES running${NC}"
+fi
+echo ""
+
+# Test 2: API Health
+echo "2. API health check..."
+HEALTH=$(curl -s http://localhost:8000/health | jq -r '.status' 2>/dev/null)
+
+if [ "$HEALTH" = "healthy" ]; then
+    echo -e "${GREEN}✓ API is healthy${NC}"
+else
+    echo -e "${RED}✗ API is not reachable${NC}"
+fi
+echo ""
+
+# Test 3: Qdrant vector store
+echo "3. Checking vector store..."
+VECTORS=$(curl -s http://localhost:6333/collections/default 2>/dev/null | jq -r '.result.points_count' 2>/dev/null)
+
+if [ ! -z "$VECTORS" ] && [ "$VECTORS" -gt 0 ]; then
+    echo -e "${GREEN}✓ $VECTORS vectors indexed in Qdrant${NC}"
+else
+    echo -e "${YELLOW}⚠ No vectors found (empty collection?)${NC}"
+fi
+echo ""
+
+# Test 4: Processed documents
+echo "4. Checking documents..."
+DOCS=$(curl -s http://localhost:8000/documents 2>/dev/null | jq '[.documents[] | select(.status=="processed")] | length' 2>/dev/null)
+
+if [ ! -z "$DOCS" ] && [ "$DOCS" -gt 0 ]; then
+    echo -e "${GREEN}✓ $DOCS documents processed${NC}"
+else
+    echo -e "${YELLOW}⚠ No documents processed yet${NC}"
+fi
+echo ""
+
+# Test 5: Frontend UI
+echo "5. Checking frontend..."
+FRONTEND=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null)
+
+if [ "$FRONTEND" = "200" ] || [ "$FRONTEND" = "301" ]; then
+    echo -e "${GREEN}✓ Frontend accessible at http://localhost:3000${NC}"
+else
+    echo -e "${RED}✗ Frontend not accessible (code: $FRONTEND)${NC}"
+fi
+echo ""
+
+# Test 6: Vector search
+echo "6. Testing vector search..."
+SEARCH_TIME=$(curl -s -X POST http://localhost:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "document configuration",
+    "collection_id": "default",
+    "max_results": 3,
+    "use_llm": false
+  }' -w "%{time_total}" -o /tmp/search_result.json 2>/dev/null)
+
+SEARCH_SOURCES=$(jq -r '.sources | length' /tmp/search_result.json 2>/dev/null)
+
+if [ ! -z "$SEARCH_SOURCES" ] && [ "$SEARCH_SOURCES" -gt 0 ]; then
+    echo -e "${GREEN}✓ Search working: $SEARCH_SOURCES sources found in ${SEARCH_TIME}s${NC}"
+else
+    echo -e "${RED}✗ Search failed${NC}"
+fi
+echo ""
+
+# Test 7: LLM generation (optional, slow)
+echo "7. Testing LLM generation (may take 5-60s)..."
+echo "   Query: 'What is RAG?'"
+
+START=$(date +%s)
+LLM_RESPONSE=$(curl -s -X POST http://localhost:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "What is RAG?",
+    "collection_id": "default",
+    "max_results": 3,
+    "use_llm": true
+  }' | jq -r '.answer' 2>/dev/null)
+END=$(date +%s)
+DURATION=$((END - START))
+
+if [ ! -z "$LLM_RESPONSE" ] && [ "$LLM_RESPONSE" != "null" ]; then
+    if echo "$LLM_RESPONSE" | grep -qi "Document [0-9]"; then
+        echo -e "${YELLOW}⚠ LLM responded but mentions document numbers${NC}"
+        echo "   Answer: ${LLM_RESPONSE:0:100}..."
+    else
+        echo -e "${GREEN}✓ LLM operational (${DURATION}s)${NC}"
+        echo "   Answer: ${LLM_RESPONSE:0:150}..."
+    fi
+else
+    echo -e "${RED}✗ LLM not working${NC}"
+fi
+echo ""
+
+# Summary
+echo "=================================="
+echo "Summary"
+echo "=================================="
+echo ""
+echo "Quick access:"
+echo "  • Chat UI:           http://localhost:3000"
+echo "  • Admin Panel:       http://localhost:3000/admin"
+echo "  • API Swagger:       http://localhost:8000/docs"
+echo "  • Qdrant Dashboard:  http://localhost:6333/dashboard"
+echo "  • MinIO Console:     http://localhost:9001 (admin/admin123456)"
+echo ""
+echo "Useful commands:"
+echo "  • Stream logs:   sudo docker-compose logs -f"
+echo "  • Restart:       sudo docker-compose restart"
+echo "  • Stop:          sudo docker-compose down"
+echo "  • Start:         sudo docker-compose up -d"
+echo ""
+echo "=================================="
+echo -e "${GREEN}System test complete ✓${NC}"
+echo "=================================="
 
 echo "=================================="
 echo "OpenRAG - Test Système Complet"

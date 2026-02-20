@@ -1,6 +1,6 @@
 """
-Service de traitement des documents
-Extraction de texte, chunking, et préparation pour l'embedding
+Document Processing Service
+Text extraction, chunking, and preparation for embedding
 """
 
 from typing import List, Dict, Any
@@ -16,7 +16,7 @@ from unstructured.partition.auto import partition
 
 
 class DocumentProcessor:
-    """Traite les documents pour extraction et chunking"""
+    """Processes documents for text extraction and chunking"""
     
     def __init__(self):
         self.embedding_service_url = os.getenv("EMBEDDING_SERVICE_URL", "http://embedding-service:8002")
@@ -25,10 +25,10 @@ class DocumentProcessor:
     
     async def process_document(self, file_data: bytes, filename: str) -> List[Dict[str, Any]]:
         """
-        Traite un document :
-        1. Extrait le texte
-        2. Découpe en chunks
-        3. Retourne les chunks avec métadonnées
+        Process a document:
+        1. Extract text
+        2. Split into chunks
+        3. Return chunks with metadata
         """
         logger.info(f"Processing document: {filename}")
         
@@ -102,8 +102,8 @@ class DocumentProcessor:
     
     def _chunk_text(self, text: str, filename: str) -> List[Dict[str, Any]]:
         """
-        Découpe le texte en chunks avec chevauchement
-        Utilise une approche simple par tokens/caractères
+        Split text into overlapping chunks.
+        Uses a simple character-based approach.
         """
         chunks = []
         
@@ -145,7 +145,7 @@ class DocumentProcessor:
     
     async def generate_embedding(self, text: str) -> List[float]:
         """
-        Génère l'embedding d'un texte via le service d'embedding
+        Generate the embedding for a text string via the embedding service.
         """
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:

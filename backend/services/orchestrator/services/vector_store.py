@@ -11,7 +11,7 @@ import httpx
 
 
 class VectorStoreService:
-    """Gère les opérations sur Qdrant"""
+    """Handles vector store operations on Qdrant"""
     
     def __init__(self):
         self.host = os.getenv("QDRANT_HOST", "qdrant")
@@ -24,7 +24,7 @@ class VectorStoreService:
         self._ensure_collection("documents_embeddings")
     
     def _ensure_collection(self, collection_name: str):
-        """Crée la collection si elle n'existe pas"""
+        """Create the Qdrant collection if it does not already exist"""
         try:
             collections = self.client.get_collections().collections
             collection_names = [c.name for c in collections]
@@ -137,7 +137,7 @@ class VectorStoreService:
             raise
     
     async def _generate_query_embedding(self, query: str) -> List[float]:
-        """Génère l'embedding de la requête"""
+        """Generate a query embedding via the embedding service"""
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
@@ -156,7 +156,7 @@ class VectorStoreService:
             raise
     
     def health_check(self):
-        """Vérifie la santé de Qdrant"""
+        """Check Qdrant connectivity"""
         try:
             self.client.get_collections()
             return True

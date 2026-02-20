@@ -1,6 +1,6 @@
 """
 OpenRAG Orchestrator
-Coordonne l'ensemble du workflow RAG
+Coordinates the full RAG pipeline workflow
 """
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
@@ -23,7 +23,7 @@ from database.db import DatabaseService
 # Configuration
 app = FastAPI(
     title="OpenRAG Orchestrator",
-    description="Service d'orchestration pour le système RAG",
+    description="Orchestration service for the RAG pipeline",
     version="1.0.0"
 )
 
@@ -96,11 +96,11 @@ async def health_check():
 @app.post("/process-query", response_model=ProcessQueryResponse)
 async def process_query(request: ProcessQueryRequest):
     """
-    Traite une requête utilisateur selon le workflow RAG :
-    1. Génère l'embedding de la requête
-    2. Recherche dans le vector store
-    3. Récupère les documents sources
-    4. Génère une réponse avec le LLM
+    Process a user query through the RAG workflow:
+    1. Generate query embedding
+    2. Search the vector store
+    3. Retrieve source documents
+    4. Generate an LLM answer
     """
     try:
         logger.info(f"Processing query: {request.query_id}")
@@ -110,19 +110,19 @@ async def process_query(request: ProcessQueryRequest):
         search_results = await vector_store.search(
             query=request.query,
             collection_name=request.collection_id or "documents_embeddings",
-            limit=request.max_results or 5,  # Par défaut 5 résultats
+            limit=request.max_results or 5,  # default 5 results
             score_threshold=0.0  # Pas de seuil - pour debug
         )
         
         if not search_results:
             logger.warning("No relevant documents found")
             return ProcessQueryResponse(
-                answer="Je n'ai pas trouvé de documents pertinents pour répondre à votre question." if request.use_llm else None,
+                answer="No relevant documents were found to answer your question." if request.use_llm else None,
                 sources=[],
                 metadata={"search_results_count": 0}
             )
         
-        # 2. Récupérer les contextes des chunks
+        # 2. Retrieve chunk contexts
         logger.info("Step 2: Retrieving document contexts")
         contexts = []
         sources = []
@@ -146,7 +146,7 @@ async def process_query(request: ProcessQueryRequest):
                         "relevance_score": result["score"]
                     })
         
-        # 3. Générer la réponse avec le LLM
+        # 3. Generate LLM response
         answer = None
         if request.use_llm and contexts:
             logger.info("Step 3: Generating LLM response")
@@ -160,7 +160,7 @@ async def process_query(request: ProcessQueryRequest):
                 contexts=contexts_with_source
             )
         
-        # 4. Enregistrer la requête dans la base
+        # 4. Save query to database
         await db_service.save_query(
             query_id=request.query_id,
             query_text=request.query,
@@ -190,15 +190,15 @@ async def ingest_document(
     collection_id: str = Form("default")
 ):
     """
-    Ingère un nouveau document :
-    1. Sauvegarde dans MinIO
-    2. Enregistre les métadonnées en DB
-    3. Lance le traitement asynchrone (chunking + embedding)
+    Ingest a new document:
+    1. Save to MinIO object storage
+    2. Register metadata in the database
+    3. Kick off async processing (chunking + embedding)
     """
     try:
         logger.info(f"Ingesting document: {file.filename}")
         
-        # 1. Sauvegarder dans MinIO
+        # 1. Save to MinIO
         content = await file.read()
         object_key = f"{document_id}/{file.filename}"
         
@@ -209,7 +209,7 @@ async def ingest_document(
             content_type=file.content_type
         )
         
-        # 2. Enregistrer les métadonnées en base
+        # 2. Save metadata to database
         await db_service.create_document(
             document_id=document_id,
             filename=file.filename,
@@ -219,13 +219,13 @@ async def ingest_document(
             collection_id=collection_id
         )
         
-        # 3. Créer un job de traitement
+        # 3. Create processing job
         job_id = await db_service.create_processing_job(
             job_type="document_processing",
             document_id=document_id
         )
         
-        # 4. Lancer le traitement asynchrone
+        # 4. Start async processing
         asyncio.create_task(
             process_document_async(document_id, object_key, file.filename, collection_id)
         )
@@ -244,12 +244,12 @@ async def ingest_document(
 
 async def process_document_async(document_id: str, object_key: str, filename: str, collection_id: str):
     """
-    Traitement asynchrone d'un document :
-    1. Télécharger depuis MinIO
-    2. Extraire le texte et chunker
-    3. Générer les embeddings
-    4. Indexer dans Qdrant
-    5. Mettre à jour le statut
+    Asynchronous document processing pipeline:
+    1. Download from MinIO
+    2. Extract text and chunk
+    3. Generate embeddings
+    4. Index in Qdrant
+    5. Update document status
     """
     try:
         logger.info(f"Starting async processing for document: {document_id}")
@@ -257,13 +257,13 @@ async def process_document_async(document_id: str, object_key: str, filename: st
         # Update status to processing
         await db_service.update_document_status(document_id, "processing")
         
-        # 1. Télécharger le fichier
+        # 1. Download file from MinIO
         file_data = await storage.download_file(
             bucket_name=os.getenv("MINIO_BUCKET_NAME", "documents"),
             object_key=object_key
         )
         
-        # 2. Extraire le texte et créer des chunks
+        # 2. Extract text and create chunks
         chunks = await document_processor.process_document(
             file_data=file_data,
             filename=filename
@@ -271,12 +271,12 @@ async def process_document_async(document_id: str, object_key: str, filename: st
         
         logger.info(f"Document chunked into {len(chunks)} pieces")
         
-        # 3. Générer les embeddings et indexer
+        # 3. Generate embeddings and index in vector store
         for idx, chunk in enumerate(chunks):
-            # Générer l'embedding
+            # Generate embedding
             embedding = await document_processor.generate_embedding(chunk["content"])
             
-            # Créer un ID unique pour le vecteur (UUID requis par Qdrant)
+            # Create a unique vector ID (UUID required by Qdrant)
             vector_id = str(uuid.uuid4())
             
             # Indexer dans Qdrant
@@ -292,7 +292,7 @@ async def process_document_async(document_id: str, object_key: str, filename: st
                 }
             )
             
-            # Sauvegarder le chunk en DB
+            # Save chunk to database
             await db_service.create_chunk(
                 document_id=document_id,
                 chunk_index=idx,
@@ -301,7 +301,7 @@ async def process_document_async(document_id: str, object_key: str, filename: st
                 metadata=chunk.get("metadata", {})
             )
         
-        # 4. Mettre à jour le statut
+        # 4. Update document status
         await db_service.update_document_status(document_id, "processed")
         
         logger.info(f"Document processing completed: {document_id}")
@@ -335,7 +335,7 @@ async def list_documents(
 
 @app.get("/documents/{document_id}")
 async def get_document(document_id: str):
-    """Récupère les détails d'un document"""
+    """Get document details by ID"""
     try:
         document = await db_service.get_document(document_id)
         if not document:

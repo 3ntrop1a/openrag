@@ -44,7 +44,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 # ─── FastAPI init ───────────────────────────────────────────────────────────────
 app = FastAPI(
     title="OpenRAG API",
-    description="API Gateway pour la solution RAG",
+    description="RAG platform API gateway",
     version=API_VERSION,
     docs_url="/docs",
     redoc_url="/redoc"
@@ -230,15 +230,15 @@ async def change_password(user_id: str, body: dict, db=Depends(get_db), _=Depend
 # ============================================
 
 class QueryRequest(BaseModel):
-    """Requête de recherche/question"""
-    query: str = Field(..., description="Question ou requête de l'utilisateur")
-    collection_id: Optional[str] = Field(None, description="ID de la collection à interroger")
-    max_results: int = Field(5, description="Nombre maximum de résultats", ge=1, le=20)
-    use_llm: bool = Field(True, description="Utiliser le LLM pour générer une réponse")
-    metadata_filter: Optional[dict] = Field(None, description="Filtres de métadonnées")
+    """Search / question request"""
+    query: str = Field(..., description="User question or search query")
+    collection_id: Optional[str] = Field(None, description="Collection ID to search in")
+    max_results: int = Field(5, description="Maximum number of results to return", ge=1, le=20)
+    use_llm: bool = Field(True, description="Whether to generate an LLM answer")
+    metadata_filter: Optional[dict] = Field(None, description="Metadata filters")
 
 class QueryResponse(BaseModel):
-    """Réponse à une requête"""
+    """Query response"""
     query_id: str
     answer: Optional[str] = None
     sources: List[dict] = []
@@ -246,14 +246,14 @@ class QueryResponse(BaseModel):
     timestamp: str
 
 class DocumentUploadResponse(BaseModel):
-    """Réponse après upload de document"""
+    """Document upload response"""
     document_id: str
     filename: str
     status: str
     message: str
 
 class HealthResponse(BaseModel):
-    """Statut de santé de l'API"""
+    """API health status"""
     status: str
     version: str
     timestamp: str
@@ -265,7 +265,7 @@ class HealthResponse(BaseModel):
 
 @app.get("/", tags=["General"])
 async def root():
-    """Point d'entrée racine"""
+    """Root endpoint"""
     return {
         "service": "OpenRAG API Gateway",
         "version": API_VERSION,
@@ -275,7 +275,7 @@ async def root():
 
 @app.get("/health", response_model=HealthResponse, tags=["General"])
 async def health_check():
-    """Vérification de santé de l'API et des services"""
+    """Health check for the API and all dependent services"""
     services = {}
     
     # Check orchestrator
@@ -297,18 +297,17 @@ async def health_check():
 @app.post("/query", response_model=QueryResponse, tags=["RAG"])
 async def process_query(request: QueryRequest):
     """
-    Traiter une requête utilisateur
-    
-    Cette endpoint :
-    1. Recherche les documents pertinents
-    2. Génère une réponse avec le LLM (si activé)
-    3. Retourne la réponse et les sources
+    Process a user query through the RAG pipeline.
+
+    1. Search for relevant document chunks
+    2. Generate an LLM answer (if enabled)
+    3. Return the answer and its sources
     """
     query_id = str(uuid.uuid4())
     start_time = datetime.utcnow()
     
     try:
-        # Timeout augmenté pour permettre la génération LLM (peut prendre 30-120s)
+        # Increased timeout to allow for LLM generation (can take 30-120s)
         async with httpx.AsyncClient(timeout=300.0) as client:
             response = await client.post(
                 f"{ORCHESTRATOR_URL}/process-query",
@@ -352,17 +351,17 @@ async def upload_document(
     collection_id: Optional[str] = None
 ):
     """
-    Upload un document pour indexation
-    
-    Formats supportés : PDF, DOCX, TXT, MD, etc.
+    Upload a document for indexing.
+
+    Supported formats: PDF, DOCX, TXT, MD, and more.
     """
     document_id = str(uuid.uuid4())
     
     try:
-        # Lire le contenu du fichier
+        # Read file content
         content = await file.read()
         
-        # Envoyer à l'orchestrateur
+        # Forward to orchestrator
         async with httpx.AsyncClient(timeout=120.0) as client:
             files = {"file": (file.filename, content, file.content_type)}
             data = {
@@ -397,7 +396,7 @@ async def upload_document(
 
 @app.get("/documents/{document_id}", tags=["Documents"])
 async def get_document(document_id: str):
-    """Récupère les détails d'un document"""
+    """Get document details by ID"""
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(f"{ORCHESTRATOR_URL}/documents/{document_id}")

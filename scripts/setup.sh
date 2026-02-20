@@ -1,7 +1,234 @@
 #!/bin/bash
 
 # OpenRAG Setup Script
-# Initialise et configure l'environnement OpenRAG
+# Initialise and configure the OpenRAG environment
+
+set -e
+
+echo "🚀 OpenRAG Setup Script"
+echo "======================="
+echo
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Functions
+print_success() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}✗${NC} $1"
+}
+
+print_info() {
+    echo -e "${YELLOW}ℹ${NC} $1"
+}
+
+# Check prerequisites
+echo "📋 Checking prerequisites..."
+echo
+
+# Check Docker
+if command -v docker &> /dev/null; then
+    DOCKER_VERSION=$(docker --version | cut -d ' ' -f3 | cut -d ',' -f1)
+    print_success "Docker installed (version $DOCKER_VERSION)"
+else
+    print_error "Docker is not installed"
+    echo "Install Docker from: https://www.docker.com/get-started"
+    exit 1
+fi
+
+# Check Docker Compose
+if docker compose version &> /dev/null; then
+    COMPOSE_VERSION=$(docker compose version --short)
+    print_success "Docker Compose installed (version $COMPOSE_VERSION)"
+else
+    print_error "Docker Compose is not installed"
+    echo "Install Docker Compose from: https://docs.docker.com/compose/install/"
+    exit 1
+fi
+
+# Check if Docker daemon is running
+if ! docker info &> /dev/null; then
+    print_error "Docker daemon is not running"
+    echo "Start Docker and re-run this script"
+    exit 1
+fi
+
+print_success "Docker daemon is running"
+echo
+
+# Setup environment file
+echo "⚙️  Configuring environment..."
+echo
+
+if [ -f .env ]; then
+    print_info ".env file already exists"
+    read -p "Do you want to replace it? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        cp .env.example .env
+        print_success ".env created from .env.example"
+    else
+        print_info ".env kept unchanged"
+    fi
+else
+    cp .env.example .env
+    print_success ".env created from .env.example"
+fi
+echo
+
+# Ask for LLM configuration
+echo "🤖 LLM Configuration"
+echo
+
+PS3="Choose your LLM provider: "
+options=("Ollama (local)" "OpenAI" "Anthropic Claude" "Keep current configuration")
+select opt in "${options[@]}"
+do
+    case $opt in
+        "Ollama (local)")
+            sed -i.bak 's/^LLM_PROVIDER=.*/LLM_PROVIDER=ollama/' .env
+            print_success "Provider: Ollama (local)"
+            
+            echo
+            echo "Available Ollama models:"
+            echo "1) llama3.1:8b (recommended, ~4.7GB)"
+            echo "2) phi3:mini (lightweight, ~2.3GB)"
+            echo "3) gemma:7b (~4.8GB)"
+            echo "4) mistral:7b (~4.1GB)"
+            read -p "Enter desired model [llama3.1:8b]: " model
+            model=${model:-llama3.1:8b}
+            sed -i.bak "s/^LLM_MODEL=.*/LLM_MODEL=$model/" .env
+            print_success "Model configured: $model"
+            break
+            ;;
+        "OpenAI")
+            sed -i.bak 's/^LLM_PROVIDER=.*/LLM_PROVIDER=openai/' .env
+            read -p "Enter your OpenAI API key: " api_key
+            sed -i.bak "s/^OPENAI_API_KEY=.*/OPENAI_API_KEY=$api_key/" .env
+            
+            read -p "OpenAI model [gpt-4-turbo]: " model
+            model=${model:-gpt-4-turbo}
+            sed -i.bak "s/^LLM_MODEL=.*/LLM_MODEL=$model/" .env
+            print_success "OpenAI configuration complete"
+            break
+            ;;
+        "Anthropic Claude")
+            sed -i.bak 's/^LLM_PROVIDER=.*/LLM_PROVIDER=anthropic/' .env
+            read -p "Enter your Anthropic API key: " api_key
+            sed -i.bak "s/^ANTHROPIC_API_KEY=.*/ANTHROPIC_API_KEY=$api_key/" .env
+            
+            read -p "Claude model [claude-3-sonnet-20240229]: " model
+            model=${model:-claude-3-sonnet-20240229}
+            sed -i.bak "s/^LLM_MODEL=.*/LLM_MODEL=$model/" .env
+            print_success "Anthropic configuration complete"
+            break
+            ;;
+        "Keep current configuration")
+            print_info "LLM configuration unchanged"
+            break
+            ;;
+        *) echo "Invalid option $REPLY";;
+    esac
+done
+
+# Cleanup backup files
+rm -f .env.bak
+
+echo
+echo "📦 Pulling images and starting services..."
+echo
+
+# Pull images
+docker compose pull
+
+# Start services
+docker compose up -d
+
+echo
+echo "⏳ Waiting for services to start..."
+sleep 10
+
+# Check services health
+echo
+echo "🏥 Checking service health..."
+echo
+
+max_attempts=30
+attempt=0
+
+while [ $attempt -lt $max_attempts ]; do
+    if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+        print_success "API Gateway is up"
+        break
+    fi
+    
+    attempt=$((attempt + 1))
+    if [ $attempt -eq $max_attempts ]; then
+        print_error "Timeout: API Gateway is not responding"
+        echo "Check logs: docker-compose logs api"
+        exit 1
+    fi
+    
+    echo -n "."
+    sleep 2
+done
+
+echo
+
+# Download Ollama model if needed
+if grep -q "LLM_PROVIDER=ollama" .env; then
+    echo
+    echo "📥 Downloading Ollama model..."
+    LLM_MODEL=$(grep "^LLM_MODEL=" .env | cut -d '=' -f2)
+    
+    print_info "Pulling $LLM_MODEL (this may take a few minutes)..."
+    docker exec openrag-ollama ollama pull "$LLM_MODEL"
+    
+    if [ $? -eq 0 ]; then
+        print_success "Model $LLM_MODEL downloaded successfully"
+    else
+        print_error "Failed to download model"
+        print_info "You can pull it manually: docker exec -it openrag-ollama ollama pull $LLM_MODEL"
+    fi
+fi
+
+echo
+echo "✅ Setup complete!"
+echo
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo
+echo "🎉 OpenRAG is ready!"
+echo
+echo "📍 Service URLs:"
+echo "   • Chat UI:            http://localhost:3000"
+echo "   • API Documentation:  http://localhost:8000/docs"
+echo "   • MinIO Console:      http://localhost:9001 (admin/admin123456)"
+echo "   • Qdrant Dashboard:   http://localhost:6333/dashboard"
+echo
+echo "📚 Next steps:"
+echo "   1. Upload your first documents:"
+echo "      curl -X POST http://localhost:8000/documents/upload \\"
+echo "           -F \"file=@document.pdf\""
+echo
+echo "   2. Ask a question:"
+echo "      curl -X POST http://localhost:8000/query \\"
+echo "           -H \"Content-Type: application/json\" \\"
+echo "           -d '{\"query\": \"Your question here\"}'"
+echo
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo
+echo "💡 Useful commands:"
+echo "   • Stream logs:   docker-compose logs -f"
+echo "   • Stop:          docker-compose down"
+echo "   • Restart:       docker-compose restart"
+echo "   • Status:        docker-compose ps"
+echo
 
 set -e
 

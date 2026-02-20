@@ -1,6 +1,6 @@
 """
-Service d'Embedding
-Génère des embeddings vectoriels pour le texte
+Embedding Service
+Generates vector embeddings for text input
 """
 
 from fastapi import FastAPI, HTTPException
@@ -20,7 +20,7 @@ BATCH_SIZE = int(os.getenv("EMBEDDING_BATCH_SIZE", "32"))
 # Initialize FastAPI
 app = FastAPI(
     title="OpenRAG Embedding Service",
-    description="Service de génération d'embeddings",
+    description="Text embedding generation service",
     version="1.0.0"
 )
 
@@ -37,20 +37,20 @@ logger.info(f"Model loaded successfully on {DEVICE}")
 # ============================================
 
 class EmbedRequest(BaseModel):
-    """Requête pour générer un embedding"""
+    """Request to generate a single embedding"""
     text: str
 
 class EmbedBatchRequest(BaseModel):
-    """Requête pour générer plusieurs embeddings"""
+    """Request to generate a batch of embeddings"""
     texts: List[str]
 
 class EmbedResponse(BaseModel):
-    """Réponse contenant l'embedding"""
+    """Single embedding response"""
     embedding: List[float]
     dimension: int
 
 class EmbedBatchResponse(BaseModel):
-    """Réponse contenant plusieurs embeddings"""
+    """Batch embeddings response"""
     embeddings: List[List[float]]
     dimension: int
     count: int
@@ -61,7 +61,7 @@ class EmbedBatchResponse(BaseModel):
 
 @app.get("/")
 async def root():
-    """Point d'entrée racine"""
+    """Root endpoint"""
     return {
         "service": "OpenRAG Embedding Service",
         "model": MODEL_NAME,
@@ -71,7 +71,7 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Vérification de santé"""
+    """Health check"""
     return {
         "status": "healthy",
         "model": MODEL_NAME,
@@ -82,7 +82,7 @@ async def health_check():
 @app.post("/embed", response_model=EmbedResponse)
 async def generate_embedding(request: EmbedRequest):
     """
-    Génère un embedding pour un texte
+    Generate an embedding for a single text.
     """
     try:
         if not request.text or not request.text.strip():
@@ -107,8 +107,8 @@ async def generate_embedding(request: EmbedRequest):
 @app.post("/embed/batch", response_model=EmbedBatchResponse)
 async def generate_embeddings_batch(request: EmbedBatchRequest):
     """
-    Génère des embeddings pour plusieurs textes (batch)
-    Optimisé pour le traitement de masse
+    Generate embeddings for multiple texts in a single batch.
+    Optimised for bulk processing.
     """
     try:
         if not request.texts:
@@ -140,7 +140,7 @@ async def generate_embeddings_batch(request: EmbedBatchRequest):
 
 @app.get("/model/info")
 async def model_info():
-    """Retourne les informations sur le modèle"""
+    """Return model metadata"""
     return {
         "model_name": MODEL_NAME,
         "dimension": model.get_sentence_embedding_dimension(),
