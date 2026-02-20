@@ -1,6 +1,6 @@
 # Makefile for OpenRAG
 
-.PHONY: help install start stop restart logs clean test status pull backup restore
+.PHONY: help install start stop restart logs clean test status pull backup restore push-public
 
 # Default target
 .DEFAULT_GOAL := help
@@ -133,6 +133,9 @@ update: ## Met à jour le projet
 	@make pull
 	@make restart
 	@echo "✅ Mise à jour terminée"
+
+push-public: ## Sync public openrag repo (strips docs/, docs_wte/, guide_openrag.txt)
+	@bash scripts/push-public.sh
 
 dev: ## Mode développement (avec hot-reload)
 	@echo "🔧 Mode développement..."
